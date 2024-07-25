@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="SolAndroid.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:SolAndroid"
+    FlyoutBackgroundColor="{StaticResource PrimaryDark}"
+    Shell.FlyoutBehavior="Flyout"
+    Title="SolAndroid">
+    
+    <ShellContent
+        Title="Welcome"
+        ContentTemplate="{DataTemplate local:MainPage}"
+        FlyoutItemIsVisible="False"
+        Route="WelcomePage" />
+
+    <FlyoutItem Title="Home" Icon="home_icon.png">
+        <Tab>
+            <ShellContent Route="MainPage" 
+                      ContentTemplate="{DataTemplate local:MainPage}" />
+        </Tab>
+
+    </FlyoutItem>
+    <FlyoutItem Title="Config" Icon="settings_icon.png" >
+        <Tab>
+            <ShellContent Route="Config" 
+                      ContentTemplate="{DataTemplate local:Config}" />
+        </Tab>
+
+    </FlyoutItem>
+    <!--
+    <FlyoutItem Title="Support" 
+                Icon="help.png">
+        <Tab>
+            <ShellContent Route="SupportPage" 
+                      ContentTemplate="{DataTemplate local:AllShipmentsPage}" />
+        </Tab>
+
+    </FlyoutItem>
+    <FlyoutItem Title="About Us"
+                Icon="info.png">
+        <Tab>
+            <ShellContent Route="AboutUsPage" 
+                      ContentTemplate="{DataTemplate local:AboutUsPage}" />
+        </Tab>
+
+    </FlyoutItem>
+    -->
+
+</Shell>

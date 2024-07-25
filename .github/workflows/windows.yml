@@ -1,0 +1,39 @@
+name: Build Windows Client
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore Dependencies
+      run: dotnet restore OpenSolWin/OpenSolWin.csproj
+
+    - name: Publish Windows
+      run: dotnet publish OpenSolWin/OpenSolWin.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false -o ./win-publish
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-client-build
+        path: win-publish/OpenSolWin.exe
+
+    - name: Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: win-publish/OpenSolWin.exe

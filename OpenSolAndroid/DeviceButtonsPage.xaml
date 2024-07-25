@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SolAndroid.DeviceButtonsPage"
+             Title="Buttons Configuration">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            <Label 
+                Text="Manage Buttons"
+                FontSize="Large"
+                FontAttributes="Bold"
+                HorizontalOptions="Center" />
+            
+            <Label Text="Aggiungi i pulsanti da visualizzare nella schermata principale. L'ID deve corrispondere a quello configurato sul server." />
+            
+            <!-- Lista pulsanti configurati -->
+            <StackLayout x:Name="ButtonsList" Spacing="10" Margin="0,10,0,0" />
+            
+            <!-- Add new button form -->
+            <Border StrokeThickness="1" Stroke="Gray" Padding="10" Margin="0,20,0,0">
+                <StackLayout Spacing="10">
+                    <Label Text="Add New Button" FontAttributes="Bold" />
+                    
+                    <Label Text="Device ID (must match server)" />
+                    <Entry x:Name="txtNewId" Placeholder="e.g. 1, gate, door..." />
+                    
+                    <Label Text="Description (button text)" />
+                    <Entry x:Name="txtNewDescription" Placeholder="e.g. Open Gate" />
+                    
+                    <Label Text="Colore Sfondo (opzionale, es. #4CAF50)" />
+                    <Entry x:Name="txtNewBackgroundColor" Placeholder="#RRGGBB o nome colore" />
+                    
+                    <Label Text="Colore Testo (opzionale, es. White)" />
+                    <Entry x:Name="txtNewTextColor" Placeholder="#RRGGBB o nome colore" />
+                    
+                    <Button Text="Add Button" Clicked="OnAddButtonClicked" BackgroundColor="#4CAF50" TextColor="White" />
+                </StackLayout>
+            </Border>
+            
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,20,0,0">
+                <Button Grid.Column="0" Text="Save" Clicked="OnSaveClicked" />
+                <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked" />
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

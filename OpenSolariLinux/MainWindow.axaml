@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="250"
+        Width="300" Height="250"
+        x:Class="OpenSolariLinux.MainWindow"
+        Title="OpenSolari Linux"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen">
+
+    <StackPanel Margin="10" Spacing="10">
+        <!-- Container for dynamic buttons -->
+        <StackPanel Name="DynamicButtonsPanel" Spacing="10"/>
+        
+        <!-- Main Buttons (Fallback, initially hidden) -->
+        <Button Name="ApriCancello" Content="Gate" IsVisible="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="20" Background="IndianRed" Click="OnApriCancelloClick"/>
+        <Button Name="ApriSbarra" Content="Barrier" IsVisible="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="20" Background="Red" Foreground="White" Click="OnApriSbarraClick"/>
+        <Button Name="ApriPorta" Content="Door" IsVisible="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" FontSize="20" Background="Black" Foreground="White" Click="OnApriPortaClick"/>
+
+        <!-- Configuration (Initially Hidden) -->
+        <Border Name="GrpConfig" BorderBrush="Gray" BorderThickness="1" CornerRadius="5" Padding="10" IsVisible="False">
+            <StackPanel Spacing="5">
+                <TextBlock Text="Server Configuration" FontWeight="Bold"/>
+                
+                <TextBlock Text="Server IP:"/>
+                <TextBox Name="TxtServerIp" Text="127.0.0.1"/>
+                
+                <TextBlock Text="Port:"/>
+                <TextBox Name="TxtServerPort" Text="8080"/>
+                
+                <TextBlock Text="Token:"/>
+                <TextBox Name="TxtToken" PasswordChar="*" Watermark="Optional"/>
+                
+                <CheckBox Name="ChkUseHttps" Content="Use HTTPS" />
+                
+                <Button Content="Save" HorizontalAlignment="Right" Click="OnSaveConfigClick"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status/Logs -->
+        <TextBlock Name="LblStatus" Text="Ready" HorizontalAlignment="Center" Foreground="Gray"/>
+    </StackPanel>
+</Window>

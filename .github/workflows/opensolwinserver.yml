@@ -1,0 +1,39 @@
+name: Build OpenSolWinServer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore Dependencies
+      run: dotnet restore OpenSolWinServer/OpenSolWinServer.csproj
+
+    - name: Publish OpenSolWinServer
+      run: dotnet publish OpenSolWinServer/OpenSolWinServer.csproj -c Release -r win-x64 -p:PublishSingleFile=true --self-contained false -o ./server-publish
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-server-build
+        path: server-publish/OpenSolWinServer.exe
+
+    - name: Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: server-publish/OpenSolWinServer.exe

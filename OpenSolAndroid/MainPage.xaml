@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SolAndroid.MainPage">
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="20,0"
+            Spacing="25">
+            <Image
+                Source="gate.png"
+                HeightRequest="120"
+                Aspect="AspectFit"
+                SemanticProperties.Description="OpenSolari" />
+
+            <Label x:Name="resultLabel" 
+               Text="Result will be shown here"
+               VerticalOptions="CenterAndExpand" 
+               HorizontalOptions="CenterAndExpand"/>
+        </VerticalStackLayout>
+        <!--
+        <Grid>
+            <Grid Grid.Row="0">
+                <Image Grid.Row="1" Source="asset.png"
+               Aspect="AspectFit"         
+               MaximumHeightRequest="400"
+               Margin="0,50"
+               VerticalOptions="StartAndExpand"
+               HorizontalOptions="StartAndExpand"
+               Opacity="0.06"/>
+            </Grid>
+            <Grid Grid.Row="1" RowDefinitions="*,8*,2*">
+                <views:Header Grid.Row="0" VerticalOptions="StartAndExpand"/>
+                <Grid Grid.Row="1" RowDefinitions="*,3*,*">
+                    <Grid Grid.Row="1" RowDefinitions="*,*,*" Padding="30,0">
+                        <ImageButton Grid.Row="0"
+                             Source="allshipmentsbtn.png"
+                             Command="{Binding GoToAllShipmentsPageCommand}"
+                             HorizontalOptions="CenterAndExpand"
+                             Margin="0"/>
+                        <ImageButton Grid.Row="1"
+                             Source="myquotesbtn.png"
+                             Command = "{Binding GoToMyQuotesPageCommand}"
+                             HorizontalOptions="CenterAndExpand"
+                             Margin="0"/>
+                        <ImageButton Grid.Row="2"
+                             Source="newquotesbtn.png"
+                             Command = "{Binding GoToNewQuotePageCommand}"
+                             HorizontalOptions="CenterAndExpand"
+                             Margin="0"/>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+        -->
+    </ScrollView>
+    
+</ContentPage>

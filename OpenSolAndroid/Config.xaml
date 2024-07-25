@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SolAndroid.Config"
+             Title="Server Configuration">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+            <Label 
+                Text="Server Configuration"
+                FontSize="Large"
+                FontAttributes="Bold"
+                HorizontalOptions="Center" />
+                
+            <Label Text="Server IP Address (Windows PC)" />
+            <Entry x:Name="txtServerIP" Placeholder="e.g. 192.168.1.10" />
+            
+            <Label Text="Server Port" />
+            <Entry x:Name="txtServerPort" Keyboard="Numeric" Placeholder="e.g. 8080" Text="8080" />
+    
+            <Label Text="Authentication Token (Optional)" />
+            <Entry x:Name="txtToken" IsPassword="True" Placeholder="Enter secret key" />
+    
+            <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                <Label Text="Use HTTPS" VerticalOptions="Center" />
+                <Switch x:Name="swUseHttps" />
+            </HorizontalStackLayout>
+    
+            <BoxView HeightRequest="1" Color="Gray" Margin="0,5,0,5" />
+            <Label Text="Geolock Configuration" FontAttributes="Bold" />
+            <Label Text="Click the button below to set your current location as the geofence center." TextColor="Gray" FontSize="Small" />
+            <Button x:Name="btnGeolocate" 
+                    Text="📍 Set Current Location as Target" 
+                    Clicked="OnGeolocateClicked" 
+                    BackgroundColor="DarkGreen" 
+                    TextColor="White" />
+    
+            <Label x:Name="lblTargetCoords" Text="Target: Not set" FontAttributes="Italic" HorizontalOptions="Center" Margin="0,5,0,5" />
+    
+            <Button Text="Manage Home Screen Buttons" 
+                    Clicked="OnManageButtonsClicked" 
+                    BackgroundColor="{StaticResource Secondary}" 
+                    TextColor="White"
+                    Margin="0,10,0,0" />
+    
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,10,0,0">
+                <Button Grid.Column="0" Text="Export Config" Clicked="OnExportClicked" BackgroundColor="Gray" TextColor="White" />
+                <Button Grid.Column="1" Text="Import Config" Clicked="OnImportClicked" BackgroundColor="Gray" TextColor="White" />
+            </Grid>
+    
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,20,0,0">
+                <Button Grid.Column="0" Text="Save" Clicked="OnSaveClicked" />
+                <Button Grid.Column="1" Text="Cancel" Clicked="OnCancelClicked" />
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

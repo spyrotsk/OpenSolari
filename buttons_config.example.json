@@ -1,0 +1,34 @@
+{
+    "buttons": [
+        {
+            "id": "1",
+            "description": "Apri Cancello",
+            "textColor": "#FFFFFF",
+            "backgroundColor": "#DC143C"
+        },
+        {
+            "id": "2",
+            "description": "Apri Sbarra",
+            "textColor": "#FFFFFF",
+            "backgroundColor": "#FF0000"
+        },
+        {
+            "id": "3",
+            "description": "Apri Porta",
+            "textColor": "#FFFFFF",
+            "backgroundColor": "#000000"
+        },
+        {
+            "id": "lavapiedi_entrata",
+            "description": "Lavapiedi Entrata",
+            "textColor": "#FFFFFF",
+            "backgroundColor": "#4169E1"
+        },
+        {
+            "id": "lavapiedi_uscita",
+            "description": "Lavapiedi Uscita",
+            "textColor": "#FFFFFF",
+            "backgroundColor": "#1E90FF"
+        }
+    ]
+}
