@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
@@ -170,6 +170,28 @@ namespace SolAndroid
                 resultLabel.TextColor = Colors.Yellow;
 
                 await UpdateLocationAsync();
+
+                if (Preferences.ContainsKey("TargetLat") && Preferences.ContainsKey("TargetLon"))
+                {
+                    string targetLatStr = Preferences.Get("TargetLat", "");
+                    string targetLonStr = Preferences.Get("TargetLon", "");
+
+                    if (!string.IsNullOrEmpty(targetLatStr) && !string.IsNullOrEmpty(targetLonStr) && _currentLocation != null)
+                    {
+                        if (double.TryParse(targetLatStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLat) &&
+                            double.TryParse(targetLonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLon))
+                        {
+                            double distance = OpenSol.Core.GeoUtils.CalculateDistance(targetLat, targetLon, _currentLocation.Latitude, _currentLocation.Longitude);
+                            // 0.150 km = 150 meters tolerance
+                            if (distance > 0.300)
+                            {
+                                resultLabel.Text = "Incorrect position. Excessive distance.";
+                                resultLabel.TextColor = Colors.Red;
+                                return;
+                            }
+                        }
+                    }
+                }
 
                 resultLabel.Text = "Sending...";
                 resultLabel.TextColor = Colors.Yellow;
