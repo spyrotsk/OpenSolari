@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.spyrotsk.solandroid"
+            android:data="opensolari://open">
+            <url-template android:value="opensolari://open{?feature_name}" />
+            <parameter
+                android:name="feature"
+                android:key="feature_name" />
+        </intent>
+    </capability>
+
+    <!-- Associazione del parametro "feature" necessaria per Google Play -->
+    <shortcut
+        android:shortcutId="feature_open"
+        android:shortcutShortLabel="@string/shortcut_apri">
+        <capability-binding android:key="actions.intent.OPEN_APP_FEATURE">
+            <parameter-binding
+                android:key="feature"
+                android:value="@array/feature_synonyms" />
+        </capability-binding>
+    </shortcut>
+</shortcuts>

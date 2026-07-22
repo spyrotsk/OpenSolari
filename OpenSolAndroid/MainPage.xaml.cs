@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
@@ -22,6 +23,32 @@ namespace SolAndroid
             client = new HttpClient();
             // Set short timeout to not block UI for too long in case of errors
             client.Timeout = TimeSpan.FromSeconds(5);
+            
+            SolAndroid.App.VoiceCommandReceived += OnVoiceCommandReceived;
+        }
+
+        private async void OnVoiceCommandReceived(string featureName)
+        {
+            if (_buttonConfigs == null || _buttonConfigs.Count == 0)
+            {
+                // Ensure buttons are loaded
+                LoadButtonsConfig();
+            }
+
+            var targetBtn = _buttonConfigs?.FirstOrDefault(b => b.Description.Equals(featureName, StringComparison.OrdinalIgnoreCase));
+            
+            if (targetBtn != null)
+            {
+                await SendCommand(targetBtn.Id);
+            }
+            else
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    resultLabel.Text = $"Command '{featureName}' not found";
+                    resultLabel.TextColor = Colors.Red;
+                });
+            }
         }
 
         protected override async void OnAppearing()
