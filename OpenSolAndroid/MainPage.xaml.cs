@@ -84,6 +84,11 @@ namespace SolAndroid
                     {
                         _buttonConfigs = config.Buttons;
                         CreateDynamicButtons();
+
+#if ANDROID
+                        var context = Android.App.Application.Context;
+                        MainActivity.UpdateDynamicShortcuts(context, _buttonConfigs);
+#endif
                         return;
                     }
                 }

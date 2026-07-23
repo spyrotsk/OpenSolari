@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Capability per comandi specifici (es. "Apri Cancello su OpenSolari") -->
     <capability android:name="actions.intent.OPEN_APP_FEATURE">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.spyrotsk.solandroid"
+            android:targetPackage="it.spyro.opensolari"
             android:data="opensolari://open">
             <url-template android:value="opensolari://open{?feature_name}" />
             <parameter
@@ -12,7 +13,20 @@
         </intent>
     </capability>
 
-    <!-- Associazione del parametro "feature" necessaria per Google Play -->
+    <!-- Capability per testo libero - accetta QUALSIASI nome dispositivo -->
+    <capability android:name="actions.intent.GET_THING">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="it.spyro.opensolari"
+            android:data="opensolari://open">
+            <url-template android:value="opensolari://open{?feature_name}" />
+            <parameter
+                android:name="thing.name"
+                android:key="feature_name" />
+        </intent>
+    </capability>
+
+    <!-- Shortcut statico di fallback con sinonimi generici -->
     <shortcut
         android:shortcutId="feature_open"
         android:shortcutShortLabel="@string/shortcut_apri">
