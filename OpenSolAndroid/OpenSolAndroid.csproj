@@ -23,7 +23,7 @@
 		<ApplicationTitle>SolAndroid</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.spyrotsk.solandroid</ApplicationId>
+		<ApplicationId>it.spyrotsk.opensolari</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -37,6 +37,7 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 		<PackageIcon></PackageIcon>
 		<NuGetAuditLevel>Low</NuGetAuditLevel>
+		<Authors>$(AssemblyName)</Authors>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
@@ -45,6 +46,8 @@
 	  <AndroidCreatePackagePerAbi>False</AndroidCreatePackagePerAbi>
 	  <AndroidLinkTool>r8</AndroidLinkTool>
 	  <AndroidKeyStore>False</AndroidKeyStore>
+	  <ApplicationVersion>1.0.2a</ApplicationVersion>
+	  <ApplicationDisplayVersion>1.0.2a</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0-android|AnyCPU'">
@@ -53,6 +56,8 @@
 	  <AndroidPackageFormat>aab</AndroidPackageFormat>
 	  <AndroidKeyStore>False</AndroidKeyStore>
 	  <EmbedAssembliesIntoApk>True</EmbedAssembliesIntoApk>
+	  <ApplicationVersion>1.0.2a</ApplicationVersion>
+	  <ApplicationDisplayVersion>1.0.2a</ApplicationDisplayVersion>
 	</PropertyGroup>
 
 	<ItemGroup>

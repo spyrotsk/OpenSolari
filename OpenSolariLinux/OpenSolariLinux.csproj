@@ -15,6 +15,7 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6" />
     <!-- ReactiveUI is commonly used but we can stick to basic backend for simplicity -->
     <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.6" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
   <ItemGroup>
