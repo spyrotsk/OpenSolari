@@ -51,11 +51,22 @@ namespace SolAndroid
             }
         }
 
+        private GeolocationAccuracy GetConfiguredAccuracy()
+        {
+            string accuracyStr = Preferences.Get("GeolocationAccuracy", "Best");
+            return accuracyStr switch
+            {
+                "Medium" => GeolocationAccuracy.Medium,
+                "High" => GeolocationAccuracy.High,
+                _ => GeolocationAccuracy.Best
+            };
+        }
+
         protected override async void OnAppearing()
         {
             base.OnAppearing();
             LoadButtonsConfig();
-            await UpdateLocationAsync(GeolocationAccuracy.Best, 3);
+            await UpdateLocationAsync(GetConfiguredAccuracy(), 3);
         }
 
         private async Task UpdateLocationAsync(GeolocationAccuracy accuracy, int timeoutSeconds)
@@ -77,12 +88,13 @@ namespace SolAndroid
 
             string targetLatStr = Preferences.Get("TargetLat", "");
             string targetLonStr = Preferences.Get("TargetLon", "");
+            double maxRadiusMeters = Preferences.Get("GeofenceRadiusMeters", 500.0);
 
             if (double.TryParse(targetLatStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLat) &&
                 double.TryParse(targetLonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLon))
             {
-                double distance = OpenSol.Core.GeoUtils.CalculateDistance(targetLat, targetLon, _currentLocation.Latitude, _currentLocation.Longitude);
-                return distance > 0.600; // Tolleranza 600 metri
+                double distanceMeters = OpenSol.Core.GeoUtils.CalculateDistance(targetLat, targetLon, _currentLocation.Latitude, _currentLocation.Longitude);
+                return distanceMeters > maxRadiusMeters;
             }
 
             return false; // Se non ci sono coordinate nel config, passa oltre
@@ -231,23 +243,13 @@ namespace SolAndroid
                     resultLabel.Text = "Acquiring location...";
                     resultLabel.TextColor = Colors.Yellow;
 
-                    // Tentativo veloce (Wi-Fi/Celle)
-                    await UpdateLocationAsync(GeolocationAccuracy.Medium, 3);
+                    await UpdateLocationAsync(GetConfiguredAccuracy(), 10);
 
                     if (IsDistanceExcessive())
                     {
-                        resultLabel.Text = "Ricalcolo posizione GPS...";
-                        resultLabel.TextColor = Colors.Orange;
-
-                        // Tentativo di precisione se il primo fallisce o sgarra i 600m
-                        await UpdateLocationAsync(GeolocationAccuracy.Best, 12);
-
-                        if (IsDistanceExcessive())
-                        {
-                            resultLabel.Text = "Incorrect position. Excessive distance.";
-                            resultLabel.TextColor = Colors.Red;
-                            return;
-                        }
+                        resultLabel.Text = "Incorrect position. Excessive distance.";
+                        resultLabel.TextColor = Colors.Red;
+                        return;
                     }
                 }
 

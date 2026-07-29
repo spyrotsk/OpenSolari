@@ -15,6 +15,8 @@ namespace OpenSol.Core
         public List<ButtonConfig> Buttons { get; set; } = new List<ButtonConfig>();
         public string TargetLat { get; set; } = string.Empty;
         public string TargetLon { get; set; } = string.Empty;
+        public double GeofenceRadiusMeters { get; set; } = 500;
+        public string GeoAccuracy { get; set; } = "Best";
         public DateTime ExportDate { get; set; } = DateTime.Now;
         public string AppVersion { get; set; } = "1.0.0";
     }

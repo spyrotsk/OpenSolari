@@ -44,6 +44,33 @@
             </Grid>
     
             <Label x:Name="lblTargetCoords" Text="Target: Not set" FontAttributes="Italic" HorizontalOptions="Center" Margin="0,5,0,5" />
+
+            <VerticalStackLayout Spacing="5" Margin="0,5,0,10">
+                <Label x:Name="lblGeofenceRadius" 
+                       Text="Max Allowed Distance Radius: 500 m" 
+                       FontAttributes="Bold" 
+                       FontSize="Small" />
+                <Slider x:Name="sldGeofenceRadius" 
+                        Minimum="50" 
+                        Maximum="5000" 
+                        Value="500" 
+                        ValueChanged="OnRadiusSliderValueChanged" />
+                <Grid ColumnDefinitions="*,*">
+                    <Label Grid.Column="0" Text="50 m" FontSize="Micro" TextColor="Gray" HorizontalOptions="Start" />
+                    <Label Grid.Column="1" Text="5000 m (5 km)" FontSize="Micro" TextColor="Gray" HorizontalOptions="End" />
+                </Grid>
+            </VerticalStackLayout>
+
+            <Label Text="Geolocation Accuracy Level" FontAttributes="Bold" FontSize="Small" Margin="0,5,0,0" />
+            <Picker x:Name="pkrGeoAccuracy" Title="Select Accuracy Mode">
+                <Picker.ItemsSource>
+                    <x:Array Type="{x:Type x:String}">
+                        <x:String>Best</x:String>
+                        <x:String>High</x:String>
+                        <x:String>Medium</x:String>
+                    </x:Array>
+                </Picker.ItemsSource>
+            </Picker>
     
             <Button Text="Manage Home Screen Buttons" 
                     Clicked="OnManageButtonsClicked" 

@@ -43,6 +43,31 @@ public partial class Config : ContentPage
             lblTargetCoords.Text = "Target: Not set";
             lblTargetCoords.TextColor = Colors.Gray;
         }
+
+        double radius = Preferences.Get("GeofenceRadiusMeters", 500.0);
+        sldGeofenceRadius.Value = radius;
+        UpdateRadiusLabel(radius);
+
+        string accuracy = Preferences.Get("GeolocationAccuracy", "Best");
+        pkrGeoAccuracy.SelectedItem = accuracy;
+    }
+
+    private void OnRadiusSliderValueChanged(object sender, ValueChangedEventArgs e)
+    {
+        double radius = Math.Round(e.NewValue / 50.0) * 50.0;
+        UpdateRadiusLabel(radius);
+    }
+
+    private void UpdateRadiusLabel(double radius)
+    {
+        if (radius >= 1000)
+        {
+            lblGeofenceRadius.Text = $"Max Allowed Distance Radius: {radius / 1000.0:0.0#} km ({radius} m)";
+        }
+        else
+        {
+            lblGeofenceRadius.Text = $"Max Allowed Distance Radius: {radius} m";
+        }
     }
 
     // We still need these strings even if the entries are gone, 
@@ -60,6 +85,10 @@ public partial class Config : ContentPage
 
         Preferences.Set("TargetLat", txtTargetLat);
         Preferences.Set("TargetLon", txtTargetLon);
+        Preferences.Set("GeofenceRadiusMeters", sldGeofenceRadius.Value);
+
+        string selectedAccuracy = pkrGeoAccuracy.SelectedItem?.ToString() ?? "Best";
+        Preferences.Set("GeolocationAccuracy", selectedAccuracy);
 
         await DisplayAlert("Saved", "Configuration saved successfully.", "OK");
         await Navigation.PopAsync(); // Go back if navigated
@@ -126,6 +155,8 @@ public partial class Config : ContentPage
                 AuthToken = Preferences.Get("AuthToken", ""), // Save the encrypted one
                 TargetLat = txtTargetLat,
                 TargetLon = txtTargetLon,
+                GeofenceRadiusMeters = sldGeofenceRadius.Value,
+                GeoAccuracy = pkrGeoAccuracy.SelectedItem?.ToString() ?? "Best",
                 ExportDate = DateTime.Now
             };
 
@@ -195,6 +226,14 @@ public partial class Config : ContentPage
             Preferences.Set("AuthToken", config.AuthToken);
             Preferences.Set("TargetLat", config.TargetLat);
             Preferences.Set("TargetLon", config.TargetLon);
+            if (config.GeofenceRadiusMeters > 0)
+            {
+                Preferences.Set("GeofenceRadiusMeters", config.GeofenceRadiusMeters);
+            }
+            if (!string.IsNullOrWhiteSpace(config.GeoAccuracy))
+            {
+                Preferences.Set("GeolocationAccuracy", config.GeoAccuracy);
+            }
             
             if (config.Buttons != null && config.Buttons.Count > 0)
             {
