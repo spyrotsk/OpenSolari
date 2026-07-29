@@ -27,15 +27,21 @@ public partial class Config : ContentPage
         // Decrypt AuthToken when loading
         txtToken.Text = OpenSol.Core.SecurityUtils.Decrypt(Preferences.Get("AuthToken", ""));
 
-        if (Preferences.ContainsKey("TargetLat") && Preferences.ContainsKey("TargetLon"))
+        if (Preferences.ContainsKey("TargetLat") && Preferences.ContainsKey("TargetLon") &&
+            !string.IsNullOrWhiteSpace(Preferences.Get("TargetLat", "")) &&
+            !string.IsNullOrWhiteSpace(Preferences.Get("TargetLon", "")))
         {
             txtTargetLat = Preferences.Get("TargetLat", "");
             txtTargetLon = Preferences.Get("TargetLon", "");
             lblTargetCoords.Text = $"Target: {txtTargetLat}, {txtTargetLon}";
+            lblTargetCoords.TextColor = Colors.Green;
         }
         else
         {
+            txtTargetLat = "";
+            txtTargetLon = "";
             lblTargetCoords.Text = "Target: Not set";
+            lblTargetCoords.TextColor = Colors.Gray;
         }
     }
 
@@ -64,28 +70,58 @@ public partial class Config : ContentPage
         await Navigation.PushAsync(new DeviceButtonsPage());
     }
 
+    private void OnClearLocationClicked(object sender, EventArgs e)
+    {
+        txtTargetLat = "";
+        txtTargetLon = "";
+        lblTargetCoords.Text = "Target: Not set";
+        lblTargetCoords.TextColor = Colors.Gray;
+    }
+
     private async void OnGeolocateClicked(object sender, EventArgs e)
     {
         try
         {
-            var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(10));
-            var location = await Geolocation.Default.GetLocationAsync(request);
+            double initialLat = 41.9028;
+            double initialLon = 12.4964;
 
-            if (location != null)
+            try
             {
-                txtTargetLat = location.Latitude.ToString(CultureInfo.InvariantCulture);
-                txtTargetLon = location.Longitude.ToString(CultureInfo.InvariantCulture);
-                
+                var request = new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(5));
+                var location = await Geolocation.Default.GetLocationAsync(request);
+
+                if (location != null)
+                {
+                    initialLat = location.Latitude;
+                    initialLon = location.Longitude;
+                }
+                else if (double.TryParse(txtTargetLat, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLat) &&
+                         double.TryParse(txtTargetLon, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLon))
+                {
+                    initialLat = savedLat;
+                    initialLon = savedLon;
+                }
+            }
+            catch
+            {
+                if (double.TryParse(txtTargetLat, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLat) &&
+                    double.TryParse(txtTargetLon, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLon))
+                {
+                    initialLat = savedLat;
+                    initialLon = savedLon;
+                }
+            }
+
+            var pickerPage = new LocationPickerPage(initialLat, initialLon, (lat, lon) =>
+            {
+                txtTargetLat = lat.ToString(CultureInfo.InvariantCulture);
+                txtTargetLon = lon.ToString(CultureInfo.InvariantCulture);
+
                 lblTargetCoords.Text = $"Target set to: {txtTargetLat}, {txtTargetLon}";
                 lblTargetCoords.TextColor = Colors.Green;
+            });
 
-                // Save immediately so it's not lost if user doesn't hit Save but hits Cancel (optional)
-                // Actually better to keep it in class variable and save it together with other settings.
-            }
-            else
-            {
-                await DisplayAlert("Error", "Unable to get location.", "OK");
-            }
+            await Navigation.PushAsync(pickerPage);
         }
         catch (Exception ex)
         {

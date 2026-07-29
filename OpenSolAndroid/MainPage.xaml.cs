@@ -55,20 +55,37 @@ namespace SolAndroid
         {
             base.OnAppearing();
             LoadButtonsConfig();
-            await UpdateLocationAsync();
+            await UpdateLocationAsync(GeolocationAccuracy.Best, 3);
         }
 
-        private async Task UpdateLocationAsync()
+        private async Task UpdateLocationAsync(GeolocationAccuracy accuracy, int timeoutSeconds)
         {
             try
             {
-                var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(5));
+                var request = new GeolocationRequest(accuracy, TimeSpan.FromSeconds(timeoutSeconds));
                 _currentLocation = await Geolocation.Default.GetLocationAsync(request);
             }
             catch (Exception)
             {
-                // Silent fail on background update
+                // Almeno mettici un log un giorno. 🙄
             }
+        }
+
+        private bool IsDistanceExcessive()
+        {
+            if (_currentLocation == null) return true;
+
+            string targetLatStr = Preferences.Get("TargetLat", "");
+            string targetLonStr = Preferences.Get("TargetLon", "");
+
+            if (double.TryParse(targetLatStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLat) &&
+                double.TryParse(targetLonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLon))
+            {
+                double distance = OpenSol.Core.GeoUtils.CalculateDistance(targetLat, targetLon, _currentLocation.Latitude, _currentLocation.Longitude);
+                return distance > 0.600; // Tolleranza 600 metri
+            }
+
+            return false; // Se non ci sono coordinate nel config, passa oltre
         }
 
         private void LoadButtonsConfig()
@@ -201,27 +218,22 @@ namespace SolAndroid
                 resultLabel.Text = "Acquiring location...";
                 resultLabel.TextColor = Colors.Yellow;
 
-                await UpdateLocationAsync();
+                // Tentativo veloce (Wi-Fi/Celle)
+                await UpdateLocationAsync(GeolocationAccuracy.Medium, 3);
 
-                if (Preferences.ContainsKey("TargetLat") && Preferences.ContainsKey("TargetLon"))
+                if (IsDistanceExcessive())
                 {
-                    string targetLatStr = Preferences.Get("TargetLat", "");
-                    string targetLonStr = Preferences.Get("TargetLon", "");
+                    resultLabel.Text = "Ricalcolo posizione GPS...";
+                    resultLabel.TextColor = Colors.Orange;
 
-                    if (!string.IsNullOrEmpty(targetLatStr) && !string.IsNullOrEmpty(targetLonStr) && _currentLocation != null)
+                    // Tentativo di precisione se il primo fallisce o sgarra i 600m
+                    await UpdateLocationAsync(GeolocationAccuracy.Best, 12);
+
+                    if (IsDistanceExcessive())
                     {
-                        if (double.TryParse(targetLatStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLat) &&
-                            double.TryParse(targetLonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double targetLon))
-                        {
-                            double distance = OpenSol.Core.GeoUtils.CalculateDistance(targetLat, targetLon, _currentLocation.Latitude, _currentLocation.Longitude);
-                            // 0.150 km = 150 meters tolerance
-                            if (distance > 0.300)
-                            {
-                                resultLabel.Text = "Incorrect position. Excessive distance.";
-                                resultLabel.TextColor = Colors.Red;
-                                return;
-                            }
-                        }
+                        resultLabel.Text = "Incorrect position. Excessive distance.";
+                        resultLabel.TextColor = Colors.Red;
+                        return;
                     }
                 }
 

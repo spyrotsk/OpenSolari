@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SolAndroid.LocationPickerPage"
+             Title="Target Location Picker">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0" Padding="15,10" BackgroundColor="{StaticResource Primary}">
+            <Label Text="📍 Adjust Target Location" 
+                   FontSize="Medium" 
+                   FontAttributes="Bold" 
+                   TextColor="White" 
+                   HorizontalOptions="Center" />
+            <Label Text="Drag the marker or tap on the map to set target" 
+                   FontSize="Caption" 
+                   TextColor="LightGray" 
+                   HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+        <!-- Map WebView -->
+        <WebView x:Name="mapWebView" 
+                 Grid.Row="1" 
+                 Navigating="OnWebViewNavigating" />
+
+        <!-- Footer Panel -->
+        <VerticalStackLayout Grid.Row="2" Padding="15" Spacing="10" BackgroundColor="#222">
+            <Label x:Name="lblCoords" 
+                   Text="Selected: --, --" 
+                   FontSize="Small" 
+                   FontAttributes="Bold" 
+                   TextColor="White" 
+                   HorizontalOptions="Center" />
+            
+            <Button Text="📍 Recenter on Device GPS" 
+                    Clicked="OnRecenterGpsClicked" 
+                    BackgroundColor="#334155" 
+                    TextColor="White" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Grid.Column="0" 
+                        Text="Confirm Location" 
+                        Clicked="OnConfirmClicked" 
+                        BackgroundColor="DarkGreen" 
+                        TextColor="White" />
+                <Button Grid.Column="1" 
+                        Text="Cancel" 
+                        Clicked="OnCancelClicked" 
+                        BackgroundColor="Gray" 
+                        TextColor="White" />
+            </Grid>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
