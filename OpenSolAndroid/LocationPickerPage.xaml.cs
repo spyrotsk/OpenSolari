@@ -11,6 +11,7 @@ public partial class LocationPickerPage : ContentPage
     public double SelectedLongitude { get; private set; }
     public bool LocationConfirmed { get; private set; } = false;
     private readonly Action<double, double>? _onLocationConfirmed;
+    private bool _userInteracted = false;
 
     public LocationPickerPage(double initialLat, double initialLon, Action<double, double>? onLocationConfirmed = null)
     {
@@ -21,6 +22,37 @@ public partial class LocationPickerPage : ContentPage
         
         UpdateCoordsLabel();
         LoadMapHtml(initialLat, initialLon);
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        _ = AutoFetchGpsAsync();
+    }
+
+    private async Task AutoFetchGpsAsync()
+    {
+        try
+        {
+            var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(5));
+            var location = await Geolocation.Default.GetLocationAsync(request);
+
+            if (location != null && !_userInteracted)
+            {
+                SelectedLatitude = location.Latitude;
+                SelectedLongitude = location.Longitude;
+                UpdateCoordsLabel();
+
+                string latStr = location.Latitude.ToString(CultureInfo.InvariantCulture);
+                string lonStr = location.Longitude.ToString(CultureInfo.InvariantCulture);
+
+                await mapWebView.EvaluateJavaScriptAsync($"if(window.setMarkerPosition) setMarkerPosition({latStr}, {lonStr});");
+            }
+        }
+        catch
+        {
+            // Silently ignore background GPS errors
+        }
     }
 
     private void UpdateCoordsLabel()
@@ -89,6 +121,7 @@ public partial class LocationPickerPage : ContentPage
         if (e.Url != null && e.Url.StartsWith("locationpicker://pos"))
         {
             e.Cancel = true;
+            _userInteracted = true;
             try
             {
                 var uri = new Uri(e.Url);

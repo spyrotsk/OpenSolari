@@ -196,6 +196,17 @@ namespace SolAndroid
 
 
 
+        private bool IsTargetLocationSet()
+        {
+            string targetLatStr = Preferences.Get("TargetLat", "");
+            string targetLonStr = Preferences.Get("TargetLon", "");
+
+            return !string.IsNullOrWhiteSpace(targetLatStr) &&
+                   !string.IsNullOrWhiteSpace(targetLonStr) &&
+                   double.TryParse(targetLatStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _) &&
+                   double.TryParse(targetLonStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
+        }
+
         private async Task SendCommand(string gateType)
         {
             string serverIp = Preferences.Get("ServerIP", "");
@@ -215,25 +226,28 @@ namespace SolAndroid
 
             try
             {
-                resultLabel.Text = "Acquiring location...";
-                resultLabel.TextColor = Colors.Yellow;
-
-                // Tentativo veloce (Wi-Fi/Celle)
-                await UpdateLocationAsync(GeolocationAccuracy.Medium, 3);
-
-                if (IsDistanceExcessive())
+                if (IsTargetLocationSet())
                 {
-                    resultLabel.Text = "Ricalcolo posizione GPS...";
-                    resultLabel.TextColor = Colors.Orange;
+                    resultLabel.Text = "Acquiring location...";
+                    resultLabel.TextColor = Colors.Yellow;
 
-                    // Tentativo di precisione se il primo fallisce o sgarra i 600m
-                    await UpdateLocationAsync(GeolocationAccuracy.Best, 12);
+                    // Tentativo veloce (Wi-Fi/Celle)
+                    await UpdateLocationAsync(GeolocationAccuracy.Medium, 3);
 
                     if (IsDistanceExcessive())
                     {
-                        resultLabel.Text = "Incorrect position. Excessive distance.";
-                        resultLabel.TextColor = Colors.Red;
-                        return;
+                        resultLabel.Text = "Ricalcolo posizione GPS...";
+                        resultLabel.TextColor = Colors.Orange;
+
+                        // Tentativo di precisione se il primo fallisce o sgarra i 600m
+                        await UpdateLocationAsync(GeolocationAccuracy.Best, 12);
+
+                        if (IsDistanceExcessive())
+                        {
+                            resultLabel.Text = "Incorrect position. Excessive distance.";
+                            resultLabel.TextColor = Colors.Red;
+                            return;
+                        }
                     }
                 }
 

@@ -85,31 +85,11 @@ public partial class Config : ContentPage
             double initialLat = 41.9028;
             double initialLon = 12.4964;
 
-            try
+            if (double.TryParse(txtTargetLat, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLat) &&
+                double.TryParse(txtTargetLon, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLon))
             {
-                var request = new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(5));
-                var location = await Geolocation.Default.GetLocationAsync(request);
-
-                if (location != null)
-                {
-                    initialLat = location.Latitude;
-                    initialLon = location.Longitude;
-                }
-                else if (double.TryParse(txtTargetLat, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLat) &&
-                         double.TryParse(txtTargetLon, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLon))
-                {
-                    initialLat = savedLat;
-                    initialLon = savedLon;
-                }
-            }
-            catch
-            {
-                if (double.TryParse(txtTargetLat, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLat) &&
-                    double.TryParse(txtTargetLon, NumberStyles.Float, CultureInfo.InvariantCulture, out double savedLon))
-                {
-                    initialLat = savedLat;
-                    initialLon = savedLon;
-                }
+                initialLat = savedLat;
+                initialLon = savedLon;
             }
 
             var pickerPage = new LocationPickerPage(initialLat, initialLon, (lat, lon) =>
