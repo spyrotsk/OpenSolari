@@ -3,6 +3,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace OpenSol.Core
@@ -16,14 +17,17 @@ namespace OpenSol.Core
         // Dictionary of configured devices (ID -> DeviceConfig)
         private Dictionary<string, DeviceConfig> _devices = new Dictionary<string, DeviceConfig>();
 
+        // Web pages that carry the CSRF tokens on newer firmwares (e.g. fs22 2.3.x)
+        private const string SignInPage = "/html/signin.asp";
+        private const string OutputPage = "/html/diagnostic/output.asp";
+        private const string OutputFormId = "SetOutputForm";
+
         public DeviceController(Action<string> logger)
         {
             _logger = logger;
             _cookieContainer = new CookieContainer();
-            // No proxy for fast local calls, dedicated handler.
-            // Credentials are used only if the device answers with an HTTP auth challenge (401 + WWW-Authenticate),
-            // as some terminal firmwares protect /goform with Basic/Digest auth instead of the form login.
-            var handler = new HttpClientHandler { CookieContainer = _cookieContainer, Credentials = new DeviceCredentials(this), PreAuthenticate = true, UseProxy = false };
+            // No proxy for fast local calls, dedicated handler
+            var handler = new HttpClientHandler { CookieContainer = _cookieContainer, UseProxy = false };
             _httpClient = new HttpClient(handler);
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
         }
@@ -61,20 +65,54 @@ namespace OpenSol.Core
                 return false;
             }
 
-            // Login to device
-            string loginUrl = $"http://{device.Ip}/goform/UserLogin";
-            string postDataLogin = $"username={WebUtility.UrlEncode(device.Username)}&pwd={WebUtility.UrlEncode(device.Password)}&Submit=Login";
+            string baseUrl = $"http://{device.Ip}";
 
-            _logger($"Attempting login on {device.Ip} (ID: {deviceId})...");
-            string? resp1 = await SendPostRequest(loginUrl, postDataLogin);
+            // Newer firmwares require the CSRF tokens published in the sign-in page.
+            // Older firmwares have no such tokens: in that case the legacy request is sent unchanged.
+            var signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage));
+            bool useCsrf = signInTokens.Count > 0;
+
+            // Login to device
+            string loginUrl = $"{baseUrl}/goform/UserLogin";
+            var loginFields = new List<KeyValuePair<string, string>>
+            {
+                new("username", device.Username),
+                new("pwd", device.Password)
+            };
+            if (useCsrf) loginFields.AddRange(signInTokens);
+            else loginFields.Add(new("Submit", "Login"));
+
+            _logger($"Attempting login on {device.Ip} (ID: {deviceId}{(useCsrf ? ", CSRF" : "")})...");
+            string? resp1 = await SendPostRequest(loginUrl, loginFields);
             if (resp1 == null) return false;
 
             // Output command
-            string outputUrl = $"http://{device.Ip}/goform/con_SetOutput";
-            string postDataOutput = $"secondi={device.EffectiveDuration}&decimi=3&outputNumber={device.OutputNum}&Select=Test%20Output%20Locale";
+            string outputUrl = $"{baseUrl}/goform/con_SetOutput";
+            var outputFields = new List<KeyValuePair<string, string>>
+            {
+                new("secondi", device.EffectiveDuration),
+                new("decimi", "3"),
+                new("outputNumber", device.OutputNum)
+            };
+            if (useCsrf)
+            {
+                // The output page token is bound to the session just opened, so it is read after the login
+                string? outputPage = await GetPage(baseUrl + OutputPage);
+                outputFields.AddRange(ParseCsrfTokens(outputPage));
+                string? formAction = ParseFormAction(outputPage, OutputFormId);
+                if (!string.IsNullOrEmpty(formAction))
+                {
+                    outputUrl = formAction.StartsWith("http") ? formAction : baseUrl + "/" + formAction.TrimStart('/');
+                }
+                outputFields.Add(new("comando", "Output"));
+            }
+            else
+            {
+                outputFields.Add(new("Select", "Test Output Locale"));
+            }
 
             _logger($"Sending command to {device.Ip} (Out: {device.OutputNum})...");
-            string? resp2 = await SendPostRequest(outputUrl, postDataOutput);
+            string? resp2 = await SendPostRequest(outputUrl, outputFields);
 
             if (resp2 != null)
             {
@@ -85,42 +123,75 @@ namespace OpenSol.Core
         }
 
         /// <summary>
-        /// Provides the configured device username/password to HttpClient when a device
-        /// answers with an HTTP authentication challenge (Basic or Digest).
+        /// Downloads a page of the device web interface. Returns null if it is not available.
         /// </summary>
-        private class DeviceCredentials : ICredentials
+        private async Task<string?> GetPage(string url)
         {
-            private readonly DeviceController _owner;
-
-            public DeviceCredentials(DeviceController owner) => _owner = owner;
-
-            public NetworkCredential? GetCredential(Uri uri, string authType)
+            try
             {
-                foreach (var device in _owner._devices.Values)
-                {
-                    if (string.Equals(device.Ip, uri.Authority, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(device.Ip, uri.Host, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return new NetworkCredential(device.Username, device.Password);
-                    }
-                }
+                HttpResponseMessage response = await _httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return null;
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger($"HTTP error to {url}: {ex.Message}");
                 return null;
             }
         }
 
-        private async Task<string?> SendPostRequest(string url, string postData)
+        /// <summary>
+        /// Extracts the hidden CSRF fields (csrftokensource, csrftoken_*) from a page.
+        /// </summary>
+        private static List<KeyValuePair<string, string>> ParseCsrfTokens(string? html)
+        {
+            var tokens = new List<KeyValuePair<string, string>>();
+            if (string.IsNullOrEmpty(html)) return tokens;
+
+            foreach (Match input in Regex.Matches(html, @"<input\b[^>]*>", RegexOptions.IgnoreCase))
+            {
+                string? name = GetAttribute(input.Value, "name") ?? GetAttribute(input.Value, "id");
+                if (name == null || !name.StartsWith("csrftoken", StringComparison.OrdinalIgnoreCase)) continue;
+                if (tokens.Exists(t => t.Key == name)) continue;
+                tokens.Add(new(name, WebUtility.HtmlDecode(GetAttribute(input.Value, "value") ?? string.Empty)));
+            }
+            return tokens;
+        }
+
+        /// <summary>
+        /// Reads the "formaction" attribute of the given form, as the web interface does.
+        /// </summary>
+        private static string? ParseFormAction(string? html, string formId)
+        {
+            if (string.IsNullOrEmpty(html)) return null;
+            foreach (Match form in Regex.Matches(html, @"<form\b[^>]*>", RegexOptions.IgnoreCase))
+            {
+                if (GetAttribute(form.Value, "id") == formId)
+                {
+                    return GetAttribute(form.Value, "formaction") ?? GetAttribute(form.Value, "action");
+                }
+            }
+            return null;
+        }
+
+        private static string? GetAttribute(string tag, string attribute)
+        {
+            var match = Regex.Match(tag, $@"(?<![\w-]){attribute}\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s>]+))", RegexOptions.IgnoreCase);
+            if (!match.Success) return null;
+            return match.Groups[1].Success ? match.Groups[1].Value
+                 : match.Groups[2].Success ? match.Groups[2].Value
+                 : match.Groups[3].Value;
+        }
+
+        private async Task<string?> SendPostRequest(string url, List<KeyValuePair<string, string>> fields)
         {
             try
             {
-                // Plain form content type, without "; charset=utf-8": some embedded web servers reject it
-                var content = new StringContent(postData, Encoding.ASCII);
-                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-www-form-urlencoded");
+                var content = new FormUrlEncodedContent(fields);
                 HttpResponseMessage response = await _httpClient.PostAsync(url, content);
                 if (!response.IsSuccessStatusCode)
                 {
-                    string authHeader = string.Join(", ", response.Headers.WwwAuthenticate.Select(h => h.ToString()));
-                    _logger($"HTTP error to {url}: {(int)response.StatusCode} ({response.ReasonPhrase})" +
-                            (string.IsNullOrEmpty(authHeader) ? "" : $" - WWW-Authenticate: {authHeader}"));
+                    _logger($"HTTP error to {url}: {(int)response.StatusCode} ({response.ReasonPhrase})");
                     return null;
                 }
                 return await response.Content.ReadAsStringAsync();
