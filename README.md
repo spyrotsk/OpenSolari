@@ -16,6 +16,7 @@
 ## 🚀 Key Features
 
 - **Device Control**: Manage output activation (doors, gates, barriers) via the Solari protocol.
+- **Mixed Terminal Fleets**: Works with both older Solari terminals and newer ones running the fs22 firmware (2.3.x), whose web interface requires session-bound CSRF tokens. The firmware is detected automatically for each terminal, so no extra configuration is needed.
 - **Cross-Platform**: Full support for Windows, Linux, and Android.
 - **Advanced Security**: 
   - Authentication via API Token (X-Auth-Token header).
