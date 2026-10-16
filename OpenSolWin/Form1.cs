@@ -56,31 +56,15 @@ namespace Cancello
                     _buttonConfigs = config.Buttons;
                     CreateDynamicButtons();
                 }
-                else
-                {
-                    // Use hardcoded buttons as fallback
-                    ApriCancello_btn.Visible = true;
-                    ApriSbarra_btn.Visible = true;
-                    ApriPorta_btn.Visible = true;
-                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading buttons: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                // Fallback to hardcoded buttons
-                ApriCancello_btn.Visible = true;
-                ApriSbarra_btn.Visible = true;
-                ApriPorta_btn.Visible = true;
             }
         }
 
         private void CreateDynamicButtons()
         {
-            // Hide hardcoded buttons
-            ApriCancello_btn.Visible = false;
-            ApriSbarra_btn.Visible = false;
-            ApriPorta_btn.Visible = false;
-
             int yPosition = 12;
             foreach (var btnConfig in _buttonConfigs)
             {
@@ -210,21 +194,6 @@ namespace Cancello
         private void btnSaveConfig_Click(object sender, EventArgs e)
         {
             SaveSettings();
-        }
-
-        private async void ApriCancello_btn_Click(object sender, EventArgs e)
-        {
-            await SendCommand("cancello");
-        }
-
-        private async void ApriSbarra_btn_Click(object sender, EventArgs e)
-        {
-            await SendCommand("sbarra");
-        }
-
-        private async void ApriPorta_btn_Click(object sender, EventArgs e)
-        {
-            await SendCommand("porta");
         }
 
         private async Task SendCommand(string gateType)

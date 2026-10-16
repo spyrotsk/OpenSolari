@@ -19,9 +19,6 @@ namespace Cancello
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
-            ApriCancello_btn = new Button();
-            ApriSbarra_btn = new Button();
-            ApriPorta_btn = new Button();
             grpConfig = new GroupBox();
             txtToken = new TextBox();
             label3 = new Label();
@@ -33,44 +30,6 @@ namespace Cancello
             chkUseHttps = new CheckBox();
             grpConfig.SuspendLayout();
             SuspendLayout();
-            // 
-            // ApriCancello_btn
-            // 
-            ApriCancello_btn.BackColor = Color.IndianRed;
-            ApriCancello_btn.Font = new Font("Segoe UI", 18F);
-            ApriCancello_btn.Location = new Point(12, 12);
-            ApriCancello_btn.Name = "ApriCancello_btn";
-            ApriCancello_btn.Size = new Size(187, 51);
-            ApriCancello_btn.TabIndex = 0;
-            ApriCancello_btn.Text = "Gate";
-            ApriCancello_btn.UseVisualStyleBackColor = false;
-            ApriCancello_btn.Click += ApriCancello_btn_Click;
-            // 
-            // ApriSbarra_btn
-            // 
-            ApriSbarra_btn.BackColor = Color.Red;
-            ApriSbarra_btn.Font = new Font("Segoe UI", 18F);
-            ApriSbarra_btn.ForeColor = Color.White;
-            ApriSbarra_btn.Location = new Point(12, 69);
-            ApriSbarra_btn.Name = "ApriSbarra_btn";
-            ApriSbarra_btn.Size = new Size(187, 51);
-            ApriSbarra_btn.TabIndex = 1;
-            ApriSbarra_btn.Text = "Barrier";
-            ApriSbarra_btn.UseVisualStyleBackColor = false;
-            ApriSbarra_btn.Click += ApriSbarra_btn_Click;
-            // 
-            // ApriPorta_btn
-            // 
-            ApriPorta_btn.BackColor = Color.Black;
-            ApriPorta_btn.Font = new Font("Segoe UI", 18F);
-            ApriPorta_btn.ForeColor = Color.White;
-            ApriPorta_btn.Location = new Point(12, 126);
-            ApriPorta_btn.Name = "ApriPorta_btn";
-            ApriPorta_btn.Size = new Size(187, 51);
-            ApriPorta_btn.TabIndex = 2;
-            ApriPorta_btn.Text = "Door";
-            ApriPorta_btn.UseVisualStyleBackColor = false;
-            ApriPorta_btn.Click += ApriPorta_btn_Click;
             // 
             // grpConfig
             // 
@@ -166,9 +125,6 @@ namespace Cancello
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(211, 582);
             Controls.Add(grpConfig);
-            Controls.Add(ApriPorta_btn);
-            Controls.Add(ApriSbarra_btn);
-            Controls.Add(ApriCancello_btn);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
@@ -186,9 +142,6 @@ namespace Cancello
 
         #endregion
 
-        private System.Windows.Forms.Button ApriCancello_btn;
-        private System.Windows.Forms.Button ApriSbarra_btn;
-        private System.Windows.Forms.Button ApriPorta_btn;
         private System.Windows.Forms.GroupBox grpConfig;
         private System.Windows.Forms.Button btnSaveConfig;
         private System.Windows.Forms.TextBox txtServerPort;
