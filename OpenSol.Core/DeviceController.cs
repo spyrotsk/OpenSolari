@@ -69,32 +69,36 @@ namespace OpenSol.Core
 
             // Newer firmwares require the CSRF tokens published in the sign-in page.
             // Older firmwares have no such tokens: in that case the legacy request is sent unchanged.
-            var signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage));
+            var signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage, baseUrl));
             bool useCsrf = signInTokens.Count > 0;
 
             // Login to device
             string loginUrl = $"{baseUrl}/goform/UserLogin";
-            var loginFields = new List<KeyValuePair<string, string>>();
+            string? resp1;
             if (useCsrf)
             {
-                // webterm.js applies encodeURIComponent to every login value before jQuery encodes the form again:
-                // the firmware expects that double encoding (relevant for the base64 token, which contains + and /)
-                loginFields.Add(new("username", Uri.EscapeDataString(device.Username)));
-                loginFields.Add(new("pwd", Uri.EscapeDataString(device.Password)));
-                foreach (var token in signInTokens)
+                _logger($"Attempting login on {device.Ip} (ID: {deviceId}, CSRF)...");
+                // webterm.js applies encodeURIComponent to every login value before jQuery encodes the form again,
+                // so the base64 token (with + and /) reaches the firmware double encoded. Try that first, then single encoding.
+                resp1 = await SendPostRequest(loginUrl, BuildCsrfLogin(device, signInTokens, true), baseUrl);
+                if (resp1 == null)
                 {
-                    loginFields.Add(new(token.Key, Uri.EscapeDataString(token.Value)));
+                    _logger($"Retrying login on {device.Ip} with single encoding...");
+                    signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage, baseUrl));
+                    resp1 = await SendPostRequest(loginUrl, BuildCsrfLogin(device, signInTokens, false), baseUrl);
                 }
             }
             else
             {
-                loginFields.Add(new("username", device.Username));
-                loginFields.Add(new("pwd", device.Password));
-                loginFields.Add(new("Submit", "Login"));
+                var loginFields = new List<KeyValuePair<string, string>>
+                {
+                    new("username", device.Username),
+                    new("pwd", device.Password),
+                    new("Submit", "Login")
+                };
+                _logger($"Attempting login on {device.Ip} (ID: {deviceId})...");
+                resp1 = await SendPostRequest(loginUrl, loginFields);
             }
-
-            _logger($"Attempting login on {device.Ip} (ID: {deviceId}{(useCsrf ? ", CSRF" : "")})...");
-            string? resp1 = await SendPostRequest(loginUrl, loginFields);
             if (resp1 == null) return false;
 
             // Output command
@@ -108,7 +112,7 @@ namespace OpenSol.Core
             if (useCsrf)
             {
                 // The output page token is bound to the session just opened, so it is read after the login
-                string? outputPage = await GetPage(baseUrl + OutputPage);
+                string? outputPage = await GetPage(baseUrl + OutputPage, baseUrl);
                 outputFields.AddRange(ParseCsrfTokens(outputPage));
                 string? formAction = ParseFormAction(outputPage, OutputFormId);
                 if (!string.IsNullOrEmpty(formAction))
@@ -125,7 +129,7 @@ namespace OpenSol.Core
             }
 
             _logger($"Sending command to {device.Ip} (Out: {device.OutputNum})...");
-            string? resp2 = await SendPostRequest(outputUrl, outputFields);
+            string? resp2 = await SendPostRequest(outputUrl, outputFields, useCsrf ? baseUrl : null);
 
             if (resp2 != null)
             {
@@ -138,11 +142,13 @@ namespace OpenSol.Core
         /// <summary>
         /// Downloads a page of the device web interface. Returns null if it is not available.
         /// </summary>
-        private async Task<string?> GetPage(string url)
+        private async Task<string?> GetPage(string url, string? browserOrigin = null)
         {
             try
             {
-                HttpResponseMessage response = await _httpClient.GetAsync(url);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                AddBrowserHeaders(request, browserOrigin);
+                HttpResponseMessage response = await _httpClient.SendAsync(request);
                 if (!response.IsSuccessStatusCode) return null;
                 return await response.Content.ReadAsStringAsync();
             }
@@ -150,6 +156,35 @@ namespace OpenSol.Core
             {
                 _logger($"HTTP error to {url}: {ex.Message}");
                 return null;
+            }
+        }
+
+        private static List<KeyValuePair<string, string>> BuildCsrfLogin(DeviceConfig device, List<KeyValuePair<string, string>> tokens, bool doubleEncode)
+        {
+            Func<string, string> encode = doubleEncode ? Uri.EscapeDataString : v => v;
+            var fields = new List<KeyValuePair<string, string>>
+            {
+                new("username", encode(device.Username)),
+                new("pwd", encode(device.Password))
+            };
+            foreach (var token in tokens)
+            {
+                fields.Add(new(token.Key, encode(token.Value)));
+            }
+            return fields;
+        }
+
+        /// <summary>
+        /// Headers sent by the web interface (jQuery ajax). Newer firmwares may check them as part of the CSRF protection.
+        /// </summary>
+        private static void AddBrowserHeaders(HttpRequestMessage request, string? browserOrigin)
+        {
+            if (browserOrigin == null) return;
+            request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
+            request.Headers.TryAddWithoutValidation("Referer", browserOrigin + "/");
+            if (request.Method == HttpMethod.Post)
+            {
+                request.Headers.TryAddWithoutValidation("Origin", browserOrigin);
             }
         }
 
@@ -196,15 +231,21 @@ namespace OpenSol.Core
                  : match.Groups[3].Value;
         }
 
-        private async Task<string?> SendPostRequest(string url, List<KeyValuePair<string, string>> fields)
+        private async Task<string?> SendPostRequest(string url, List<KeyValuePair<string, string>> fields, string? browserOrigin = null)
         {
             try
             {
-                var content = new FormUrlEncodedContent(fields);
-                HttpResponseMessage response = await _httpClient.PostAsync(url, content);
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                AddBrowserHeaders(request, browserOrigin);
+                request.Content = new FormUrlEncodedContent(fields);
+                HttpResponseMessage response = await _httpClient.SendAsync(request);
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger($"HTTP error to {url}: {(int)response.StatusCode} ({response.ReasonPhrase})");
+                    string body = await response.Content.ReadAsStringAsync();
+                    if (body.Length > 200) body = body.Substring(0, 200);
+                    var sent = fields.Select(f => f.Key == "pwd" ? "pwd=***" : $"{f.Key}({f.Value.Length})");
+                    int cookies = _cookieContainer.GetCookies(new Uri(url)).Count;
+                    _logger($"HTTP error to {url}: {(int)response.StatusCode} ({response.ReasonPhrase}) - fields: {string.Join(", ", sent)} - cookies: {cookies} - body: {body.Trim()}");
                     return null;
                 }
                 return await response.Content.ReadAsStringAsync();
