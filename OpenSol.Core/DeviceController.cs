@@ -20,8 +20,10 @@ namespace OpenSol.Core
         {
             _logger = logger;
             _cookieContainer = new CookieContainer();
-            // No proxy for fast local calls, dedicated handler
-            var handler = new HttpClientHandler { CookieContainer = _cookieContainer, UseProxy = false };
+            // No proxy for fast local calls, dedicated handler.
+            // Credentials are used only if the device answers with an HTTP auth challenge (401 + WWW-Authenticate),
+            // as some terminal firmwares protect /goform with Basic/Digest auth instead of the form login.
+            var handler = new HttpClientHandler { CookieContainer = _cookieContainer, Credentials = new DeviceCredentials(this), PreAuthenticate = true, UseProxy = false };
             _httpClient = new HttpClient(handler);
             _httpClient.Timeout = TimeSpan.FromSeconds(10);
         }
@@ -61,7 +63,7 @@ namespace OpenSol.Core
 
             // Login to device
             string loginUrl = $"http://{device.Ip}/goform/UserLogin";
-            string postDataLogin = $"username={device.Username}&pwd={device.Password}&Submit=Login";
+            string postDataLogin = $"username={WebUtility.UrlEncode(device.Username)}&pwd={WebUtility.UrlEncode(device.Password)}&Submit=Login";
 
             _logger($"Attempting login on {device.Ip} (ID: {deviceId})...");
             string? resp1 = await SendPostRequest(loginUrl, postDataLogin);
@@ -82,13 +84,45 @@ namespace OpenSol.Core
             return false;
         }
 
+        /// <summary>
+        /// Provides the configured device username/password to HttpClient when a device
+        /// answers with an HTTP authentication challenge (Basic or Digest).
+        /// </summary>
+        private class DeviceCredentials : ICredentials
+        {
+            private readonly DeviceController _owner;
+
+            public DeviceCredentials(DeviceController owner) => _owner = owner;
+
+            public NetworkCredential? GetCredential(Uri uri, string authType)
+            {
+                foreach (var device in _owner._devices.Values)
+                {
+                    if (string.Equals(device.Ip, uri.Authority, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(device.Ip, uri.Host, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new NetworkCredential(device.Username, device.Password);
+                    }
+                }
+                return null;
+            }
+        }
+
         private async Task<string?> SendPostRequest(string url, string postData)
         {
             try
             {
-                var content = new StringContent(postData, Encoding.UTF8, "application/x-www-form-urlencoded");
+                // Plain form content type, without "; charset=utf-8": some embedded web servers reject it
+                var content = new StringContent(postData, Encoding.ASCII);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/x-www-form-urlencoded");
                 HttpResponseMessage response = await _httpClient.PostAsync(url, content);
-                response.EnsureSuccessStatusCode();
+                if (!response.IsSuccessStatusCode)
+                {
+                    string authHeader = string.Join(", ", response.Headers.WwwAuthenticate.Select(h => h.ToString()));
+                    _logger($"HTTP error to {url}: {(int)response.StatusCode} ({response.ReasonPhrase})" +
+                            (string.IsNullOrEmpty(authHeader) ? "" : $" - WWW-Authenticate: {authHeader}"));
+                    return null;
+                }
                 return await response.Content.ReadAsStringAsync();
             }
             catch (Exception ex)
