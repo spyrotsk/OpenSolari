@@ -71,6 +71,11 @@ namespace OpenSol.Core
             // Older firmwares have no such tokens: in that case the legacy request is sent unchanged.
             var signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage, baseUrl));
             bool useCsrf = signInTokens.Count > 0;
+            if (useCsrf)
+            {
+                // Cookie set by the web interface when the cookie banner is accepted
+                _cookieContainer.Add(new Uri(baseUrl), new Cookie("cookie-policy-consent", "true", "/"));
+            }
 
             // Login to device
             string loginUrl = $"{baseUrl}/goform/UserLogin";
@@ -78,15 +83,8 @@ namespace OpenSol.Core
             if (useCsrf)
             {
                 _logger($"Attempting login on {device.Ip} (ID: {deviceId}, CSRF)...");
-                // webterm.js applies encodeURIComponent to every login value before jQuery encodes the form again,
-                // so the base64 token (with + and /) reaches the firmware double encoded. Try that first, then single encoding.
-                resp1 = await SendPostRequest(loginUrl, BuildCsrfLogin(device, signInTokens, true), baseUrl);
-                if (resp1 == null)
-                {
-                    _logger($"Retrying login on {device.Ip} with single encoding...");
-                    signInTokens = ParseCsrfTokens(await GetPage(baseUrl + SignInPage, baseUrl));
-                    resp1 = await SendPostRequest(loginUrl, BuildCsrfLogin(device, signInTokens, false), baseUrl);
-                }
+                // Same body as the web interface: username, pwd and the sign-in page tokens, URL-encoded once
+                resp1 = await SendPostRequest(loginUrl, BuildCsrfLogin(device, signInTokens), baseUrl);
             }
             else
             {
@@ -149,6 +147,7 @@ namespace OpenSol.Core
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
                 AddBrowserHeaders(request, browserOrigin);
                 HttpResponseMessage response = await _httpClient.SendAsync(request);
+                LogSetCookie(url, response);
                 if (!response.IsSuccessStatusCode) return null;
                 return await response.Content.ReadAsStringAsync();
             }
@@ -159,18 +158,24 @@ namespace OpenSol.Core
             }
         }
 
-        private static List<KeyValuePair<string, string>> BuildCsrfLogin(DeviceConfig device, List<KeyValuePair<string, string>> tokens, bool doubleEncode)
+        /// <summary>
+        /// Logs the cookies a device sets (names only), to check that the session cookie is kept.
+        /// </summary>
+        private void LogSetCookie(string url, HttpResponseMessage response)
         {
-            Func<string, string> encode = doubleEncode ? Uri.EscapeDataString : v => v;
+            if (!response.Headers.TryGetValues("Set-Cookie", out var values)) return;
+            var names = values.Select(v => v.Split('=')[0].Trim());
+            _logger($"{url} set cookies: {string.Join(", ", names)} (stored: {_cookieContainer.GetCookies(new Uri(url)).Count})");
+        }
+
+        private static List<KeyValuePair<string, string>> BuildCsrfLogin(DeviceConfig device, List<KeyValuePair<string, string>> tokens)
+        {
             var fields = new List<KeyValuePair<string, string>>
             {
-                new("username", encode(device.Username)),
-                new("pwd", encode(device.Password))
+                new("username", device.Username),
+                new("pwd", device.Password)
             };
-            foreach (var token in tokens)
-            {
-                fields.Add(new(token.Key, encode(token.Value)));
-            }
+            fields.AddRange(tokens);
             return fields;
         }
 
@@ -180,7 +185,7 @@ namespace OpenSol.Core
         private static void AddBrowserHeaders(HttpRequestMessage request, string? browserOrigin)
         {
             if (browserOrigin == null) return;
-            request.Headers.TryAddWithoutValidation("X-Requested-With", "XMLHttpRequest");
+            request.Headers.TryAddWithoutValidation("Accept", "*/*");
             request.Headers.TryAddWithoutValidation("Referer", browserOrigin + "/");
             if (request.Method == HttpMethod.Post)
             {
@@ -239,6 +244,7 @@ namespace OpenSol.Core
                 AddBrowserHeaders(request, browserOrigin);
                 request.Content = new FormUrlEncodedContent(fields);
                 HttpResponseMessage response = await _httpClient.SendAsync(request);
+                LogSetCookie(url, response);
                 if (!response.IsSuccessStatusCode)
                 {
                     string body = await response.Content.ReadAsStringAsync();
