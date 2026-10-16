@@ -74,13 +74,24 @@ namespace OpenSol.Core
 
             // Login to device
             string loginUrl = $"{baseUrl}/goform/UserLogin";
-            var loginFields = new List<KeyValuePair<string, string>>
+            var loginFields = new List<KeyValuePair<string, string>>();
+            if (useCsrf)
             {
-                new("username", device.Username),
-                new("pwd", device.Password)
-            };
-            if (useCsrf) loginFields.AddRange(signInTokens);
-            else loginFields.Add(new("Submit", "Login"));
+                // webterm.js applies encodeURIComponent to every login value before jQuery encodes the form again:
+                // the firmware expects that double encoding (relevant for the base64 token, which contains + and /)
+                loginFields.Add(new("username", Uri.EscapeDataString(device.Username)));
+                loginFields.Add(new("pwd", Uri.EscapeDataString(device.Password)));
+                foreach (var token in signInTokens)
+                {
+                    loginFields.Add(new(token.Key, Uri.EscapeDataString(token.Value)));
+                }
+            }
+            else
+            {
+                loginFields.Add(new("username", device.Username));
+                loginFields.Add(new("pwd", device.Password));
+                loginFields.Add(new("Submit", "Login"));
+            }
 
             _logger($"Attempting login on {device.Ip} (ID: {deviceId}{(useCsrf ? ", CSRF" : "")})...");
             string? resp1 = await SendPostRequest(loginUrl, loginFields);
@@ -104,6 +115,8 @@ namespace OpenSol.Core
                 {
                     outputUrl = formAction.StartsWith("http") ? formAction : baseUrl + "/" + formAction.TrimStart('/');
                 }
+                // Head selector of SetOutputForm: empty value = MAIN (the terminal itself)
+                outputFields.Add(new("testa", ""));
                 outputFields.Add(new("comando", "Output"));
             }
             else
