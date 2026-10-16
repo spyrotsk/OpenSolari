@@ -57,31 +57,15 @@ namespace OpenSolariLinux
                     _buttonConfigs = config.Buttons;
                     CreateDynamicButtons();
                 }
-                else
-                {
-                    // Use hardcoded buttons as fallback
-                    ApriCancello.IsVisible = true;
-                    ApriSbarra.IsVisible = true;
-                    ApriPorta.IsVisible = true;
-                }
             }
             catch (Exception ex)
             {
                 LblStatus.Text = $"Error loading buttons: {ex.Message}";
-                // Fallback to hardcoded buttons
-                ApriCancello.IsVisible = true;
-                ApriSbarra.IsVisible = true;
-                ApriPorta.IsVisible = true;
             }
         }
 
         private void CreateDynamicButtons()
         {
-            // Hide hardcoded buttons
-            ApriCancello.IsVisible = false;
-            ApriSbarra.IsVisible = false;
-            ApriPorta.IsVisible = false;
-
             foreach (var btnConfig in _buttonConfigs)
             {
                 var btn = new Button
@@ -186,10 +170,6 @@ namespace OpenSolariLinux
         {
             SaveConfig();
         }
-
-        private async void OnApriCancelloClick(object sender, RoutedEventArgs e) => await SendCommand("cancello");
-        private async void OnApriSbarraClick(object sender, RoutedEventArgs e) => await SendCommand("sbarra");
-        private async void OnApriPortaClick(object sender, RoutedEventArgs e) => await SendCommand("porta");
 
         private async Task SendCommand(string gateType)
         {
