@@ -361,3 +361,12 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# OpenSolari runtime configuration (local only, never committed).
+# Templates: buttons_config.example.json, devices_config.example.json
+config.txt
+buttons_config.json
+devices_config.json
+server.config
+access_control.json
+test-config/
