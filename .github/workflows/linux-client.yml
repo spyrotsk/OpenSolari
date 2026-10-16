@@ -24,7 +24,7 @@ jobs:
       run: dotnet restore OpenSolariLinux/OpenSolariLinux.csproj
 
     - name: Publish Linux Client
-      run: dotnet publish OpenSolariLinux/OpenSolariLinux.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o ./linux-client-publish
+      run: dotnet publish OpenSolariLinux/OpenSolariLinux.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o ./linux-client-publish
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4

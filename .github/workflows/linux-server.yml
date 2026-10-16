@@ -24,7 +24,7 @@ jobs:
       run: dotnet restore OpenSolLinuxServer/OpenSolLinuxServer.csproj
 
     - name: Publish Linux Server
-      run: dotnet publish OpenSolLinuxServer/OpenSolLinuxServer.csproj -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true -o ./linux-publish
+      run: dotnet publish OpenSolLinuxServer/OpenSolLinuxServer.csproj -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true -p:EnableCompressionInSingleFile=true -p:PublishTrimmed=true -o ./linux-publish
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
