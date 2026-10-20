@@ -165,7 +165,7 @@ The server requires a `devices_config.json` file in the same directory as the ex
     "devices": [
         {
             "id": "1",
-            "ip": "192.168.70.12",
+            "ip": "192.168.1.12",
             "outputNum": "1",
             "duration": "0",
             "username": "webterm",
@@ -173,7 +173,7 @@ The server requires a `devices_config.json` file in the same directory as the ex
         },
         {
             "id": "2",
-            "ip": "192.168.70.13",
+            "ip": "192.168.1.13",
             "outputNum": "1",
             "duration": "0",
             "username": "webterm",
