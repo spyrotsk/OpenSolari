@@ -2,31 +2,31 @@
     "buttons": [
         {
             "id": "1",
-            "description": "Apri Cancello",
+            "description": "Open Gate",
             "textColor": "#FFFFFF",
             "backgroundColor": "#DC143C"
         },
         {
             "id": "2",
-            "description": "Apri Sbarra",
+            "description": "Open Barrier",
             "textColor": "#FFFFFF",
             "backgroundColor": "#FF0000"
         },
         {
             "id": "3",
-            "description": "Apri Porta",
+            "description": "Open Door",
             "textColor": "#FFFFFF",
             "backgroundColor": "#000000"
         },
         {
-            "id": "lavapiedi_entrata",
-            "description": "Lavapiedi Entrata",
+            "id": "turnstile_in",
+            "description": "Turnstile In",
             "textColor": "#FFFFFF",
             "backgroundColor": "#4169E1"
         },
         {
-            "id": "lavapiedi_uscita",
-            "description": "Lavapiedi Uscita",
+            "id": "turnstile_out",
+            "description": "Turnstile Out",
             "textColor": "#FFFFFF",
             "backgroundColor": "#1E90FF"
         }

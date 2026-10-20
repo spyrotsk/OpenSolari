@@ -25,7 +25,7 @@
       "password": "webterm"
     },
     {
-      "id": "lavapiedi_entrata",
+      "id": "turnstile_in",
       "ip": "192.168.70.15",
       "outputNum": "2",
       "duration": "0",
@@ -33,7 +33,7 @@
       "password": "webterm"
     },
     {
-      "id": "lavapiedi_uscita",
+      "id": "turnstile_out",
       "ip": "192.168.70.15",
       "outputNum": "3",
       "duration": "0",
