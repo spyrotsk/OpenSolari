@@ -1,4 +1,4 @@
-namespace Cancello
+namespace OpenSolWin
 {
     internal static class Program
     {

@@ -1,5 +1,5 @@
 ﻿
-namespace Cancello
+namespace OpenSolWin
 {
     partial class Form1
     {

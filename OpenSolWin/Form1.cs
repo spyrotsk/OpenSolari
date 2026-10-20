@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using OpenSol.Core;
 
-namespace Cancello
+namespace OpenSolWin
 {
     public partial class Form1 : Form
     {
