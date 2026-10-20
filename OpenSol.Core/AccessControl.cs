@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -10,7 +11,7 @@ namespace OpenSol.Core
     {
         public string Username { get; set; } = "";
         
-        // Encrypted Token
+        // Salted hash of the user's code (see SecurityUtils.HashSecret)
         public string Token { get; set; } = "";
 
         public bool IgnoreSchedule { get; set; } = false;
@@ -41,7 +42,8 @@ namespace OpenSol.Core
         private static AccessControlConfig _cachedConfig;
         private static DateTime _lastLoadTime = DateTime.MinValue;
 
-        private static Dictionary<string, UserAccessRule> _decryptedTokenCache = new Dictionary<string, UserAccessRule>();
+        // Codes already verified, so PBKDF2 runs once per code. Value: username and the hash it matched.
+        private static readonly ConcurrentDictionary<string, (string Username, string Hash)> _verifiedTokenCache = new ConcurrentDictionary<string, (string Username, string Hash)>();
 
         public static AccessControlConfig LoadConfig()
         {
@@ -58,7 +60,6 @@ namespace OpenSol.Core
                 if (!File.Exists(ConfigFileName))
                 {
                    _cachedConfig = new AccessControlConfig();
-                   _decryptedTokenCache.Clear();
                    return _cachedConfig;
                 }
             }
@@ -69,24 +70,25 @@ namespace OpenSol.Core
                 _cachedConfig = JsonSerializer.Deserialize(json, OpenSolContext.Default.AccessControlConfig) ?? new AccessControlConfig();
                 _lastLoadTime = DateTime.Now;
 
-                // Rebuild Cache
-                _decryptedTokenCache.Clear();
+                // Migrate tokens from the old encrypted (or plain) format to salted hashes
+                bool migrated = false;
                 foreach (var user in _cachedConfig.Users)
                 {
-                    if (!string.IsNullOrEmpty(user.Token))
+                    if (!string.IsNullOrEmpty(user.Token) && !SecurityUtils.IsHashedSecret(user.Token))
                     {
-                        string decrypted = SecurityUtils.Decrypt(user.Token);
-                        if (!string.IsNullOrEmpty(decrypted) && !_decryptedTokenCache.ContainsKey(decrypted))
-                        {
-                            _decryptedTokenCache[decrypted] = user;
-                        }
+                        user.Token = SecurityUtils.HashSecret(SecurityUtils.Decrypt(user.Token));
+                        migrated = true;
                     }
+                }
+
+                if (migrated)
+                {
+                    File.WriteAllText(ConfigFileName, JsonSerializer.Serialize(_cachedConfig, OpenSolContext.Default.AccessControlConfig));
                 }
             }
             catch (Exception)
             {
                 _cachedConfig = new AccessControlConfig();
-                _decryptedTokenCache.Clear();
             }
 
             return _cachedConfig;
@@ -172,14 +174,16 @@ namespace OpenSol.Core
             catch (Exception) { }
         }
 
-        public static void AddUser(string username, string encryptedToken, Dictionary<string, string> schedule, bool ignoreSchedule = false, bool ignoreGeolock = false, List<string>? allowedDevices = null)
+        // An empty code keeps the existing user's code
+        public static void AddUser(string username, string? code, Dictionary<string, string> schedule, bool ignoreSchedule = false, bool ignoreGeolock = false, List<string>? allowedDevices = null)
         {
             var config = LoadConfig();
             var existing = config.Users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            string? tokenHash = string.IsNullOrEmpty(code) ? null : SecurityUtils.HashSecret(code);
             
             if (existing != null)
             {
-                existing.Token = encryptedToken;
+                if (tokenHash != null) existing.Token = tokenHash;
                 existing.Schedule = schedule;
                 existing.IgnoreSchedule = ignoreSchedule;
                 existing.IgnoreGeolock = ignoreGeolock;
@@ -187,10 +191,12 @@ namespace OpenSol.Core
             }
             else
             {
+                if (tokenHash == null) throw new ArgumentException("A code is required for a new user.", nameof(code));
+
                 config.Users.Add(new UserAccessRule 
                 { 
                     Username = username, 
-                    Token = encryptedToken, 
+                    Token = tokenHash, 
                     Schedule = schedule,
                     IgnoreSchedule = ignoreSchedule,
                     IgnoreGeolock = ignoreGeolock,
@@ -213,10 +219,23 @@ namespace OpenSol.Core
 
         public static UserAccessRule? Authenticate(string token)
         {
-            LoadConfig(); // Ensure cache is populated
-            if (_decryptedTokenCache.TryGetValue(token, out var user))
+            var config = LoadConfig();
+
+            if (_verifiedTokenCache.TryGetValue(token, out var cached))
             {
-                return user;
+                // Still valid only if the user still has the same hash
+                var cachedUser = config.Users.FirstOrDefault(u => u.Username == cached.Username && u.Token == cached.Hash);
+                if (cachedUser != null) return cachedUser;
+                _verifiedTokenCache.TryRemove(token, out _);
+            }
+
+            foreach (var user in config.Users)
+            {
+                if (SecurityUtils.VerifySecret(token, user.Token))
+                {
+                    _verifiedTokenCache[token] = (user.Username, user.Token);
+                    return user;
+                }
             }
             return null;
         }

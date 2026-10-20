@@ -45,7 +45,7 @@ namespace OpenSolWinServer
             lblName = new Label() { Text = "Username:", Location = new Point(20, 20), AutoSize = true };
             txtName = new TextBox() { Location = new Point(20, 40), Width = 150 };
 
-            lblCode = new Label() { Text = "Secret Code:", Location = new Point(180, 20), AutoSize = true };
+            lblCode = new Label() { Text = "Secret Code (empty = keep):", Location = new Point(180, 20), AutoSize = true };
             txtCode = new TextBox() { Location = new Point(180, 40), Width = 150 };
 
             chkIgnoreGeolock = new CheckBox() { Text = "Ignore Geolock (Admin/Special)", Location = new Point(350, 40), AutoSize = true };
@@ -189,14 +189,15 @@ namespace OpenSolWinServer
             string name = txtName.Text.Trim();
             string code = txtCode.Text.Trim();
 
-            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(code))
+            var config = AccessControlManager.LoadConfig();
+            bool exists = config.Users.Any(u => u.Username.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            // The code is only required for new users: an empty code keeps the existing one
+            if (string.IsNullOrEmpty(name) || (string.IsNullOrEmpty(code) && !exists))
             {
                 MessageBox.Show("Please enter both username and code.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
-            var config = AccessControlManager.LoadConfig();
-            bool exists = config.Users.Any(u => u.Username.Equals(name, StringComparison.OrdinalIgnoreCase));
 
             // Logic change: If we are editing (name matches existing), we update.
             // If name is new, it's a new user. 
@@ -215,7 +216,6 @@ namespace OpenSolWinServer
                     return;
             }
 
-            string encryptedCode = SecurityUtils.Encrypt(code);
             var schedule = GetScheduleFromUI();
             
             bool ignoreSchedule = false; 
@@ -235,7 +235,7 @@ namespace OpenSolWinServer
             var devices = txtDevices.Text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
             List<string>? allowedDevices = devices.Count == 0 ? null : devices;
 
-            AccessControlManager.AddUser(name, encryptedCode, schedule, ignoreSchedule, chkIgnoreGeolock.Checked, allowedDevices);
+            AccessControlManager.AddUser(name, code, schedule, ignoreSchedule, chkIgnoreGeolock.Checked, allowedDevices);
             
             txtName.Text = "";
             txtCode.Text = "";
@@ -256,8 +256,8 @@ namespace OpenSolWinServer
                 if (user != null)
                 {
                     txtName.Text = user.Username;
-                    // Decrypt token to show in UI
-                    txtCode.Text = SecurityUtils.Decrypt(user.Token); 
+                    // Codes are stored as hashes and cannot be shown: leave empty to keep the current one
+                    txtCode.Text = ""; 
                     
                     // Reset Checkboxes
                     foreach(var chk in chkDays) chk.Checked = false;

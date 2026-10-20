@@ -20,7 +20,7 @@
 - **Cross-Platform**: Full support for Windows, Linux, and Android.
 - **Advanced Security**: 
   - Authentication via API Token (X-Auth-Token header).
-  - Encrypted tokens at rest.
+  - User codes stored only as salted hashes (PBKDF2), never in a decryptable form.
   - HTTPS support (Beta) for secure communications.
   - **Geofencing (Geolock)**: Restrict Android client commands to a specific geographical radius around the server's target location.
 - **Flexible Management**: Dynamic configuration via JSON files and intuitive graphical interfaces.
@@ -67,7 +67,7 @@ The project is divided into modular components:
 - **Installation**:
   1. Install .NET Runtime: `sudo apt-get install -y dotnet-runtime-10.0` (on Ubuntu/Debian).
   2. Run the server: `dotnet OpenSolLinuxServer.dll [params]` or `./OpenSolLinuxServer [params]`.
-- **Note**: Parameters passed via CLI override those in the `server.config` file and are automatically saved for subsequent restarts. Auth tokens are stored in `access_control.json` (user data) and `server.config` (legacy parameters) in an encrypted format.
+- **Note**: Parameters passed via CLI override those in the `server.config` file and are automatically saved for subsequent restarts. User codes are stored in `access_control.json` as salted hashes. Legacy users found in `server.config` are migrated there automatically.
 
 ### 🐧 Linux Client (OpenSolariLinux)
 - **OS**: Linux with a Desktop Environment (GNOME, plasma, XFCE, etc.) supporting X11 or Wayland.
@@ -118,7 +118,7 @@ MaxDistance=300
 - **Authentication**: Users are stored as `UserName=EncryptedToken`. New users should be added via the GUI (Windows) or CLI (Linux). (String)
 
 ### Access Control Configuration (`access_control.json`)
-This file stores the user database, including their encrypted tokens and access schedules. It replaces the legacy authentication method in `server.config`.
+This file stores the user database, including the hashes of their codes and access schedules. It replaces the legacy authentication method in `server.config`.
 
 **Example `access_control.json`:**
 ```json
@@ -126,7 +126,7 @@ This file stores the user database, including their encrypted tokens and access 
   "Users": [
     {
       "Username": "Admin",
-      "Token": "T3N0cnlwdGVkRGF0YQ==",
+      "Token": "pbkdf2$20000$q2Jx0p6FZr1rS8m1yQh8Zw==$3n0fGQ2bq0n7mJ1pZr7cJmY4e2y6m5h2kW0Q6x9vT1E=",
       "IgnoreSchedule": true,
       "IgnoreGeolock": true,
       "Schedule": {},
@@ -134,7 +134,7 @@ This file stores the user database, including their encrypted tokens and access 
     },
     {
       "Username": "OfficeStaff",
-      "Token": "U2VjcmV0Q29kZQ==",
+      "Token": "pbkdf2$20000$Zp8xQ1n2bW3c4d5e6f7g8A==$Yk9wR3hTdEZ1VnFqN2J6cE1hS0x4QnZ3Y1dzRGZnSGo=",
       "IgnoreSchedule": false,
       "AllowedDevices": ["1", "turnstile_in"],
       "Schedule": {
@@ -150,7 +150,7 @@ This file stores the user database, including their encrypted tokens and access 
 ```
 
 - **Username**: The name of the user.
-- **Token**: The AES-encrypted secret code.
+- **Token**: Salted PBKDF2 hash of the user's secret code, written by the server. The code itself cannot be recovered from it: to change it, set a new one from the GUI or CLI. Tokens in the old encrypted format are converted automatically the first time the server loads the file.
 - **IgnoreSchedule**: If `true`, the user has full 24/7 access (Admin).
 - **IgnoreGeolock**: If `true`, the user bypasses geofencing checks (Admin/Special).
 - **Schedule**: A dictionary of days and time ranges (e.g., `"Monday": "08:00-18:00"`). Times are in `HH:mm` format. Missing days imply NO access for that day.

@@ -85,8 +85,7 @@ namespace OpenSolLinuxServer
                             : AccessControlManager.LoadConfig().Users
                                 .FirstOrDefault(u => u.Username.Equals(name, StringComparison.OrdinalIgnoreCase))?.AllowedDevices;
 
-                        string encryptedToken = SecurityUtils.Encrypt(code);
-                        AccessControlManager.AddUser(name, encryptedToken, schedule, ignoreSchedule, ignoreGeolock, allowedDevices);
+                        AccessControlManager.AddUser(name, code, schedule, ignoreSchedule, ignoreGeolock, allowedDevices);
                         
                         Console.WriteLine($"User '{name}' added/updated successfully.");
                         if (ignoreSchedule) Console.WriteLine("- Access: FULL (24/7)");

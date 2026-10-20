@@ -104,6 +104,48 @@ namespace OpenSol.Core
             }
         }
 
+        private const string HashPrefix = "pbkdf2$";
+        private const int HashIterations = 20000;
+
+        /// <summary>
+        /// Hashes a secret with a random salt (PBKDF2-SHA256). Format: pbkdf2$iterations$salt$hash
+        /// Used by the server to store user codes without any key that could decrypt them.
+        /// </summary>
+        public static string HashSecret(string secret)
+        {
+            byte[] salt = RandomNumberGenerator.GetBytes(16);
+            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(secret, salt, HashIterations, HashAlgorithmName.SHA256, 32);
+            return $"{HashPrefix}{HashIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+        }
+
+        public static bool IsHashedSecret(string? stored)
+        {
+            return stored != null && stored.StartsWith(HashPrefix, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Checks a secret against a value produced by HashSecret, in constant time.
+        /// </summary>
+        public static bool VerifySecret(string secret, string? stored)
+        {
+            if (string.IsNullOrEmpty(secret) || !IsHashedSecret(stored)) return false;
+
+            var parts = stored!.Split('$');
+            if (parts.Length != 4 || !int.TryParse(parts[1], out int iterations) || iterations <= 0) return false;
+
+            try
+            {
+                byte[] salt = Convert.FromBase64String(parts[2]);
+                byte[] expected = Convert.FromBase64String(parts[3]);
+                byte[] actual = Rfc2898DeriveBytes.Pbkdf2(secret, salt, iterations, HashAlgorithmName.SHA256, expected.Length);
+                return CryptographicOperations.FixedTimeEquals(actual, expected);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Compares two strings in constant time to mitigate Timing Attacks.
         /// </summary>
