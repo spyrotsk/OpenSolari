@@ -7,48 +7,11 @@ namespace OpenSol.Core
 {
     public static class SecurityUtils
     {
-        // NOTE: In a real production app, this key should not be hardcoded in the code
-        // but managed via OS Secure Storage or protected parameters.
-        // For this project, we use a fixed derived key to ensure portability between components.
+        // LEGACY: older versions encrypted tokens with this key, which is public in the source code.
+        // It is only kept to read and migrate those tokens: the server stores hashes (HashSecret)
+        // and the clients use the operating system's protected storage.
         private static readonly string SharedKey = "OpenSolari_Security_Key_2026!"; 
         private static readonly byte[] Salt = Encoding.UTF8.GetBytes("OpenSolSalt");
-
-        public static string Encrypt(string plainText)
-        {
-            if (string.IsNullOrEmpty(plainText)) return "";
-
-            try 
-            {
-                byte[] clearBytes = Encoding.UTF8.GetBytes(plainText);
-                using (Aes encryptor = Aes.Create())
-                {
-                    Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(SharedKey, Salt, 1000, HashAlgorithmName.SHA256);
-                    encryptor.Key = pdb.GetBytes(32);
-                    
-                    // Generates a random IV for each encryption
-                    encryptor.GenerateIV();
-                    byte[] iv = encryptor.IV;
-
-                    using (MemoryStream ms = new MemoryStream())
-                    {
-                        // We write the IV at the beginning of the packet to recover it during decryption
-                        ms.Write(iv, 0, iv.Length);
-
-                        using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
-                        {
-                            cs.Write(clearBytes, 0, clearBytes.Length);
-                            cs.Close();
-                        }
-                        return Convert.ToBase64String(ms.ToArray());
-                    }
-                }
-            }
-            catch
-            {
-                // In case of error, return the original text (graceful fallback for migration)
-                return plainText;
-            }
-        }
 
         public static string Decrypt(string cipherText)
         {

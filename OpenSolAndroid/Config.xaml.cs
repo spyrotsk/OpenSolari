@@ -24,8 +24,7 @@ public partial class Config : ContentPage
         if (Preferences.ContainsKey("UseHttps"))
             swUseHttps.IsToggled = Preferences.Get("UseHttps", false);
 
-        // Decrypt AuthToken when loading
-        txtToken.Text = OpenSol.Core.SecurityUtils.Decrypt(Preferences.Get("AuthToken", ""));
+        _ = LoadTokenAsync();
 
         if (Preferences.ContainsKey("TargetLat") && Preferences.ContainsKey("TargetLon") &&
             !string.IsNullOrWhiteSpace(Preferences.Get("TargetLat", "")) &&
@@ -75,13 +74,17 @@ public partial class Config : ContentPage
     private string txtTargetLat = "";
     private string txtTargetLon = "";
 
+    private async Task LoadTokenAsync()
+    {
+        txtToken.Text = await TokenStore.GetAsync();
+    }
+
     private async void OnSaveClicked(object sender, EventArgs e)
     {
         Preferences.Set("ServerIP", txtServerIP.Text);
         Preferences.Set("ServerPort", txtServerPort.Text);
         Preferences.Set("UseHttps", swUseHttps.IsToggled);
-        // Encrypt AuthToken when saving
-        Preferences.Set("AuthToken", OpenSol.Core.SecurityUtils.Encrypt(txtToken.Text));
+        await TokenStore.SetAsync(txtToken.Text);
 
         Preferences.Set("TargetLat", txtTargetLat);
         Preferences.Set("TargetLon", txtTargetLon);
@@ -152,7 +155,7 @@ public partial class Config : ContentPage
                 ServerIP = txtServerIP.Text,
                 ServerPort = txtServerPort.Text,
                 UseHttps = swUseHttps.IsToggled,
-                AuthToken = Preferences.Get("AuthToken", ""), // Save the encrypted one
+                AuthToken = "", // Not exported: the token stays in this device's secure storage
                 TargetLat = txtTargetLat,
                 TargetLon = txtTargetLon,
                 GeofenceRadiusMeters = sldGeofenceRadius.Value,
@@ -223,7 +226,9 @@ public partial class Config : ContentPage
             Preferences.Set("ServerIP", config.ServerIP);
             Preferences.Set("ServerPort", config.ServerPort);
             Preferences.Set("UseHttps", config.UseHttps);
-            Preferences.Set("AuthToken", config.AuthToken);
+            // Files exported by older versions contain the token (encrypted with the old shared key)
+            if (!string.IsNullOrEmpty(config.AuthToken))
+                await TokenStore.SetAsync(SecurityUtils.Decrypt(config.AuthToken));
             Preferences.Set("TargetLat", config.TargetLat);
             Preferences.Set("TargetLon", config.TargetLon);
             if (config.GeofenceRadiusMeters > 0)

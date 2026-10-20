@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using OpenSol.Core;
@@ -157,7 +159,14 @@ namespace OpenSolWin
                     }
                     if (lines.Length >= 3)
                     {
-                        Token = OpenSol.Core.SecurityUtils.Decrypt(lines[2]);
+                        Token = UnprotectToken(lines[2]);
+
+                        // Re-save tokens written by older versions with DPAPI
+                        if (!lines[2].StartsWith(DpapiPrefix, StringComparison.Ordinal) && !string.IsNullOrEmpty(Token))
+                        {
+                            lines[2] = ProtectToken(Token);
+                            System.IO.File.WriteAllLines("config.txt", lines);
+                        }
                     }
                     if (lines.Length >= 4)
                     {
@@ -175,7 +184,7 @@ namespace OpenSolWin
                 System.IO.File.WriteAllLines("config.txt", new[] { 
                     txtServerIP.Text, 
                     txtServerPort.Text, 
-                    OpenSol.Core.SecurityUtils.Encrypt(txtToken.Text),
+                    ProtectToken(txtToken.Text),
                     chkUseHttps.Checked.ToString()
                 });
                 ServerIp = txtServerIP.Text;
@@ -188,6 +197,34 @@ namespace OpenSolWin
             catch (Exception ex)
             {
                 MessageBox.Show($"Save error: {ex.Message}");
+            }
+        }
+
+        // The token is protected with Windows DPAPI, bound to the current Windows user.
+        // Older versions encrypted it with a key shared by every install.
+        private const string DpapiPrefix = "dpapi:";
+
+        private static string ProtectToken(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return "";
+            byte[] data = ProtectedData.Protect(Encoding.UTF8.GetBytes(token), null, DataProtectionScope.CurrentUser);
+            return DpapiPrefix + Convert.ToBase64String(data);
+        }
+
+        private static string UnprotectToken(string stored)
+        {
+            if (!stored.StartsWith(DpapiPrefix, StringComparison.Ordinal))
+                return OpenSol.Core.SecurityUtils.Decrypt(stored); // Legacy format
+
+            try
+            {
+                byte[] data = ProtectedData.Unprotect(Convert.FromBase64String(stored.Substring(DpapiPrefix.Length)), null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(data);
+            }
+            catch (Exception)
+            {
+                // Saved by another Windows user or on another PC: the token must be entered again
+                return "";
             }
         }
 

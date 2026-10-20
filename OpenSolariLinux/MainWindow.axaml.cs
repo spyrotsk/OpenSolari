@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace OpenSolariLinux
@@ -132,7 +133,15 @@ namespace OpenSolariLinux
                     }
                     if (lines.Length >= 3)
                     {
-                        _token = OpenSol.Core.SecurityUtils.Decrypt(lines[2]);
+                        bool legacy = !lines[2].StartsWith(PlainPrefix, StringComparison.Ordinal);
+                        _token = legacy ? OpenSol.Core.SecurityUtils.Decrypt(lines[2]) : lines[2].Substring(PlainPrefix.Length);
+
+                        // Re-save tokens written by older versions, and restrict the file permissions
+                        if (legacy && !string.IsNullOrEmpty(_token))
+                        {
+                            lines[2] = PlainPrefix + _token;
+                            WriteConfigFile(lines);
+                        }
                     }
                     if (lines.Length >= 4)
                     {
@@ -147,10 +156,10 @@ namespace OpenSolariLinux
         {
             try
             {
-                File.WriteAllLines("config.txt", new[] { 
+                WriteConfigFile(new[] { 
                     TxtServerIp.Text, 
                     TxtServerPort.Text, 
-                    OpenSol.Core.SecurityUtils.Encrypt(TxtToken.Text),
+                    PlainPrefix + TxtToken.Text,
                     ChkUseHttps.IsChecked.ToString()
                 });
                 _serverIp = TxtServerIp.Text;
@@ -164,6 +173,27 @@ namespace OpenSolariLinux
             {
                 LblStatus.Text = $"Save error: {ex.Message}";
             }
+        }
+
+        // Linux has no standard secret store available everywhere: the token is kept in config.txt,
+        // which only the current user can read (chmod 600). Older versions encrypted it with a key
+        // shared by every install, which gave no real protection.
+        private const string PlainPrefix = "plain:";
+
+        private static void WriteConfigFile(string[] lines)
+        {
+            const string path = "config.txt";
+            var options = new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write };
+
+            if (!OperatingSystem.IsWindows())
+            {
+                const UnixFileMode ownerOnly = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                options.UnixCreateMode = ownerOnly;
+                if (File.Exists(path)) File.SetUnixFileMode(path, ownerOnly);
+            }
+
+            using var writer = new StreamWriter(path, new UTF8Encoding(false), options);
+            foreach (var line in lines) writer.WriteLine(line);
         }
 
         private void OnSaveConfigClick(object sender, RoutedEventArgs e)

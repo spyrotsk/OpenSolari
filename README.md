@@ -21,6 +21,7 @@
 - **Advanced Security**: 
   - Authentication via API Token (X-Auth-Token header).
   - User codes stored only as salted hashes (PBKDF2), never in a decryptable form.
+  - Clients keep their token in the operating system's protected storage (DPAPI on Windows, Android Keystore) or, on Linux, in a config file readable only by the current user.
   - HTTPS support (Beta) for secure communications.
   - **Geofencing (Geolock)**: Restrict Android client commands to a specific geographical radius around the server's target location.
 - **Flexible Management**: Dynamic configuration via JSON files and intuitive graphical interfaces.

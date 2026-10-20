@@ -234,7 +234,7 @@ namespace SolAndroid
 
             string scheme = useHttps ? "https" : "http";
             string url = $"{scheme}://{serverIp}:{serverPort}/open?gate={gateType}";
-            string token = OpenSol.Core.SecurityUtils.Decrypt(Preferences.Get("AuthToken", ""));
+            string token = await TokenStore.GetAsync();
 
             try
             {
