@@ -18,6 +18,8 @@ namespace OpenSolWinServer
         private Label lblName;
         private Label lblCode;
         private CheckBox chkIgnoreGeolock;
+        private Label lblDevices;
+        private TextBox txtDevices;
 
         public UsersForm()
         {
@@ -34,7 +36,7 @@ namespace OpenSolWinServer
         private void InitializeComponent()
         {
             this.Text = "User Management";
-            this.Size = new Size(600, 620); 
+            this.Size = new Size(600, 660); 
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -113,18 +115,21 @@ namespace OpenSolWinServer
                 yPos += 30;
             }
 
-            btnSave = new Button() { Text = "Save User", Location = new Point(20, 340), Width = 310 };
+            lblDevices = new Label() { Text = "Allowed devices (IDs separated by commas, empty = all):", Location = new Point(20, 340), AutoSize = true };
+            txtDevices = new TextBox() { Location = new Point(20, 358), Width = 540 };
+
+            btnSave = new Button() { Text = "Save User", Location = new Point(20, 390), Width = 310 };
             btnSave.Click += BtnSave_Click;
 
-            lstUsers = new ListBox() { Location = new Point(20, 380), Width = 540, Height = 150 };
+            lstUsers = new ListBox() { Location = new Point(20, 430), Width = 540, Height = 140 };
 
-            btnEdit = new Button() { Text = "Edit Selected", Location = new Point(340, 340), Width = 220 };
+            btnEdit = new Button() { Text = "Edit Selected", Location = new Point(340, 390), Width = 220 };
             btnEdit.Click += BtnEdit_Click;
 
-            btnRemove = new Button() { Text = "Remove Selected", Location = new Point(20, 540), Width = 150 };
+            btnRemove = new Button() { Text = "Remove Selected", Location = new Point(20, 580), Width = 150 };
             btnRemove.Click += BtnRemove_Click;
 
-            btnClose = new Button() { Text = "Close", Location = new Point(410, 540), Width = 150 };
+            btnClose = new Button() { Text = "Close", Location = new Point(410, 580), Width = 150 };
             btnClose.Click += (s, e) => this.Close();
 
             this.Controls.Add(lblName);
@@ -133,6 +138,8 @@ namespace OpenSolWinServer
             this.Controls.Add(txtCode);
             this.Controls.Add(grpSchedule);
             this.Controls.Add(chkIgnoreGeolock);
+            this.Controls.Add(lblDevices);
+            this.Controls.Add(txtDevices);
             this.Controls.Add(btnSave);
             this.Controls.Add(btnEdit);
             this.Controls.Add(lstUsers);
@@ -151,6 +158,9 @@ namespace OpenSolWinServer
                 else info += " (Schedule)";
 
                 if (user.IgnoreGeolock) info += " (No Geolock)";
+
+                if (user.AllowedDevices != null && !user.AllowedDevices.Contains("*"))
+                    info += user.AllowedDevices.Count == 0 ? " (Devices: NONE)" : $" (Devices: {string.Join(", ", user.AllowedDevices)})";
                 
                 lstUsers.Items.Add(new UserItem { Name = user.Username, Token = user.Token, Display = info });
             }
@@ -221,10 +231,15 @@ namespace OpenSolWinServer
                  }
             }
 
-            AccessControlManager.AddUser(name, encryptedCode, schedule, ignoreSchedule, chkIgnoreGeolock.Checked);
+            // Empty field = all devices
+            var devices = txtDevices.Text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            List<string>? allowedDevices = devices.Count == 0 ? null : devices;
+
+            AccessControlManager.AddUser(name, encryptedCode, schedule, ignoreSchedule, chkIgnoreGeolock.Checked, allowedDevices);
             
             txtName.Text = "";
             txtCode.Text = "";
+            txtDevices.Text = "";
             chkIgnoreGeolock.Checked = false;
             // Reset UI
              foreach(var chk in chkDays) chk.Checked = false;
@@ -248,6 +263,7 @@ namespace OpenSolWinServer
                     foreach(var chk in chkDays) chk.Checked = false;
 
                     chkIgnoreGeolock.Checked = user.IgnoreGeolock;
+                    txtDevices.Text = user.AllowedDevices == null ? "" : string.Join(", ", user.AllowedDevices);
 
                     if (!user.IgnoreSchedule && user.Schedule != null)
                     {

@@ -18,6 +18,16 @@ namespace OpenSol.Core
 
         // Key: DayOfWeek (English, e.g. "Monday"), Value: "HH:mm-HH:mm"
         public Dictionary<string, string> Schedule { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Device IDs (from devices_config.json) this user may open.
+        // null (field missing) = all devices (backward compatibility), "*" = all devices, [] = no devices.
+        public List<string>? AllowedDevices { get; set; }
+
+        public bool IsDeviceAllowed(string deviceId)
+        {
+            if (AllowedDevices == null) return true;
+            return AllowedDevices.Any(d => d == "*" || d.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     public class AccessControlConfig
@@ -162,7 +172,7 @@ namespace OpenSol.Core
             catch (Exception) { }
         }
 
-        public static void AddUser(string username, string encryptedToken, Dictionary<string, string> schedule, bool ignoreSchedule = false, bool ignoreGeolock = false)
+        public static void AddUser(string username, string encryptedToken, Dictionary<string, string> schedule, bool ignoreSchedule = false, bool ignoreGeolock = false, List<string>? allowedDevices = null)
         {
             var config = LoadConfig();
             var existing = config.Users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
@@ -173,6 +183,7 @@ namespace OpenSol.Core
                 existing.Schedule = schedule;
                 existing.IgnoreSchedule = ignoreSchedule;
                 existing.IgnoreGeolock = ignoreGeolock;
+                existing.AllowedDevices = allowedDevices;
             }
             else
             {
@@ -182,7 +193,8 @@ namespace OpenSol.Core
                     Token = encryptedToken, 
                     Schedule = schedule,
                     IgnoreSchedule = ignoreSchedule,
-                    IgnoreGeolock = ignoreGeolock
+                    IgnoreGeolock = ignoreGeolock,
+                    AllowedDevices = allowedDevices
                 });
             }
             SaveConfig(config);

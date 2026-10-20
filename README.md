@@ -48,6 +48,7 @@ The project is divided into modular components:
     - Add authenticated users with specific access schedules (Days & Time ranges).
     - **Edit User**: Select a user, click "Edit Selected" to modify details or existing schedules, then "Save User".
     - **Geolock Bypass**: Administrators can enable "Ignore Geolock" for specific users to allow them to operate regardless of their GPS position.
+    - **Allowed Devices**: Restrict a user to specific device IDs (comma separated). Leave empty to allow all devices.
     - Remove users.
     - Set specific start/end times per day (HH:mm format).
 
@@ -56,12 +57,13 @@ The project is divided into modular components:
 - **Runtime**: [.NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 - **CLI Parameters**: 
   - `--port <number>`: The port the server will listen on (default: `9999`).
-  - `--add-user <name> --auth <code> [--schedule <schedule_str>] [--ignore-geolock]`: Adds or updates a user. 
+  - `--add-user <name> --auth <code> [--schedule <schedule_str>] [--ignore-geolock] [--devices <device_ids>]`: Adds or updates a user. 
     - Schedule Format: `"Mon:08:00-18:00,Tue:08:00-12:00"`.
     - If no schedule is provided, the user gets Full Access (24/7).
     - Use `--ignore-geolock` to exempt the user from geofence checks.
+    - Use `--devices "1,turnstile_in"` to restrict the user to those device IDs (`"*"` = all). New users without `--devices` can open all devices; existing users keep their current list.
   - `--remove-user <name>`: Removes the user with the specified name.
-  - `--list-users`: Lists all registered users and their access types (Full/Schedule, Geolock bypass).
+  - `--list-users`: Lists all registered users and their access types (Full/Schedule, Geolock bypass, allowed devices).
 - **Installation**:
   1. Install .NET Runtime: `sudo apt-get install -y dotnet-runtime-10.0` (on Ubuntu/Debian).
   2. Run the server: `dotnet OpenSolLinuxServer.dll [params]` or `./OpenSolLinuxServer [params]`.
@@ -127,12 +129,14 @@ This file stores the user database, including their encrypted tokens and access 
       "Token": "T3N0cnlwdGVkRGF0YQ==",
       "IgnoreSchedule": true,
       "IgnoreGeolock": true,
-      "Schedule": {}
+      "Schedule": {},
+      "AllowedDevices": ["*"]
     },
     {
       "Username": "OfficeStaff",
       "Token": "U2VjcmV0Q29kZQ==",
       "IgnoreSchedule": false,
+      "AllowedDevices": ["1", "turnstile_in"],
       "Schedule": {
         "Monday": "08:00-18:00",
         "Tuesday": "08:00-18:00",
@@ -150,6 +154,7 @@ This file stores the user database, including their encrypted tokens and access 
 - **IgnoreSchedule**: If `true`, the user has full 24/7 access (Admin).
 - **IgnoreGeolock**: If `true`, the user bypasses geofencing checks (Admin/Special).
 - **Schedule**: A dictionary of days and time ranges (e.g., `"Monday": "08:00-18:00"`). Times are in `HH:mm` format. Missing days imply NO access for that day.
+- **AllowedDevices**: The device IDs (from `devices_config.json`) the user may open. `["*"]`, `null` or a missing field allows all devices; `[]` allows none. Requests for any other device are rejected by the server and logged as `Command failed (Device not allowed: <id>)`, whatever buttons the client has configured.
 
 ### Device Mapping Configuration (`devices_config.json`)
 The server requires a `devices_config.json` file in the same directory as the executable to map IDs to physical Solari devices.

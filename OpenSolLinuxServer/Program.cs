@@ -30,11 +30,12 @@ namespace OpenSolLinuxServer
                 }
                 else if (args[i] == "--add-user" && i + 1 < args.Length)
                 {
-                    // Required Format: --add-user Name --auth Code [--schedule "Mon:08-18,..."]
+                    // Required Format: --add-user Name --auth Code [--schedule "Mon:08-18,..."] [--devices "1,2"]
                     string name = args[++i];
                     string code = "";
                     string scheduleStr = "";
                     bool ignoreGeolock = false;
+                    string? devicesStr = null;
 
                     // Parse other args
                     while (i + 1 < args.Length)
@@ -48,6 +49,11 @@ namespace OpenSolLinuxServer
                         {
                             i++;
                             scheduleStr = args[++i];
+                        }
+                        else if (args[i + 1] == "--devices")
+                        {
+                            i++;
+                            devicesStr = args[++i];
                         }
                         else if (args[i + 1] == "--ignore-geolock")
                         {
@@ -73,14 +79,21 @@ namespace OpenSolLinuxServer
                         // - In Windows UI we asked. Here we assume Full Access if no schedule is provided for simplicity of CLI.
                         bool ignoreSchedule = (schedule.Count == 0);
 
+                        // Without --devices an existing user keeps its current device list; a new user gets all devices.
+                        List<string>? allowedDevices = devicesStr != null
+                            ? ParseDevices(devicesStr)
+                            : AccessControlManager.LoadConfig().Users
+                                .FirstOrDefault(u => u.Username.Equals(name, StringComparison.OrdinalIgnoreCase))?.AllowedDevices;
+
                         string encryptedToken = SecurityUtils.Encrypt(code);
-                        AccessControlManager.AddUser(name, encryptedToken, schedule, ignoreSchedule, ignoreGeolock);
+                        AccessControlManager.AddUser(name, encryptedToken, schedule, ignoreSchedule, ignoreGeolock, allowedDevices);
                         
                         Console.WriteLine($"User '{name}' added/updated successfully.");
                         if (ignoreSchedule) Console.WriteLine("- Access: FULL (24/7)");
                         else Console.WriteLine($"- Access: Limited ({schedule.Count} schedule rules)");
                         
                         if (ignoreGeolock) Console.WriteLine("- Geolock: BYPASSED");
+                        Console.WriteLine($"- Devices: {FormatDevices(allowedDevices)}");
                         
                         return; // Exit after command
                     }
@@ -105,6 +118,7 @@ namespace OpenSolLinuxServer
                     {
                         string info = u.IgnoreSchedule ? "(Admin/Full)" : "(Schedule)";
                         if (u.IgnoreGeolock) info += " (No Geolock)";
+                        info += $" (Devices: {FormatDevices(u.AllowedDevices)})";
                         Console.WriteLine($"- {u.Username} {info}");
                     }
                     return; 
@@ -161,6 +175,18 @@ namespace OpenSolLinuxServer
         private static bool bfs_IsCommand(string arg)
         {
             return arg.StartsWith("--");
+        }
+
+        private static List<string> ParseDevices(string input)
+        {
+            // Format: "1,2,turnstile_in" or "*" for all devices
+            return input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        }
+
+        private static string FormatDevices(List<string>? devices)
+        {
+            if (devices == null || devices.Contains("*")) return "ALL";
+            return devices.Count == 0 ? "NONE" : string.Join(", ", devices);
         }
 
         private static Dictionary<string, string> ParseSchedule(string input)

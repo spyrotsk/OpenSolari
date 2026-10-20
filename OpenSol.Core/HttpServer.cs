@@ -160,6 +160,18 @@ namespace OpenSol.Core
                     // Non-Android clients (Windows/Linux) skip geolock check
                 }
 
+                // Device Restriction Check
+                if (context.Request.Url?.AbsolutePath == "/open")
+                {
+                    string gate = context.Request.QueryString["gate"] ?? "";
+                    if (!user.IsDeviceAllowed(gate))
+                    {
+                        Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = $"Command failed (Device not allowed: {gate})", IsError = true });
+                        context.Response.Abort();
+                        return;
+                    }
+                }
+
                 Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "OK", IsError = false });
 
                 responseString = await _requestHandler(context);
