@@ -118,11 +118,10 @@ namespace OpenSol.Core
                     string key = parts[0].Trim();
                     string val = parts[1].Trim();
 
-                    // Skip system keys
-                    if (key.Equals("Port", StringComparison.OrdinalIgnoreCase) ||
-                        key.Equals("UseHttps", StringComparison.OrdinalIgnoreCase) ||
-                        key.Equals("logs", StringComparison.OrdinalIgnoreCase) ||
-                        key.Equals("logsretention", StringComparison.OrdinalIgnoreCase))
+                    // Skip server settings (EnableGeolock, MaxDistance, ...): earlier this list was incomplete,
+                    // and settings became users whose code was the setting's value (e.g. "300").
+                    // Only values that look like an old encrypted code are taken as users.
+                    if (ConfigManager.IsSettingKey(key) || !IsLegacyEncryptedCode(val))
                     {
                         continue;
                     }
@@ -158,6 +157,29 @@ namespace OpenSol.Core
                 }
             }
             catch (Exception) { }
+        }
+
+        private static bool IsLegacyEncryptedCode(string value)
+        {
+            try
+            {
+                byte[] bytes = Convert.FromBase64String(value);
+                return bytes.Length >= 16 && bytes.Length % 16 == 0;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Users named after a server setting (EnableGeolock, GeoLatitude, GeoLongitude, MaxDistance, ...),
+        /// created by mistake by older versions of the migration from server.config. They are ignored when
+        /// authenticating and should be removed.
+        /// </summary>
+        public static List<string> GetUsersNamedAfterSettings()
+        {
+            return LoadConfig().Users.Where(u => ConfigManager.IsSettingKey(u.Username)).Select(u => u.Username).ToList();
         }
 
         public static void SaveConfig(AccessControlConfig config)
@@ -234,6 +256,8 @@ namespace OpenSol.Core
 
             foreach (var user in config.Users)
             {
+                if (ConfigManager.IsSettingKey(user.Username)) continue; // See GetUsersNamedAfterSettings
+
                 if (SecurityUtils.VerifySecret(token, user.Token))
                 {
                     _verifiedTokenCache[token] = (user.Username, user.Token);

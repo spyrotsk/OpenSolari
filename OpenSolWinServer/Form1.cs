@@ -167,6 +167,12 @@ namespace OpenSolWinServer
             AccessControlManager.LoadConfig();
             Log($"Authentication managed by Access Control Manager.");
 
+            var settingUsers = AccessControlManager.GetUsersNamedAfterSettings();
+            if (settingUsers.Count > 0)
+            {
+                Log($"WARNING: users named after server settings ({string.Join(", ", settingUsers)}) were created by mistake by an older version. They are ignored: remove them in Manage Users.");
+            }
+
             try
             {
                 _server.Start(port, _config.UseHttps);

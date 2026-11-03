@@ -22,6 +22,18 @@ namespace OpenSol.Core
     {
         private const string ConfigFileName = "server.config";
 
+        // Keys of server.config. Older versions also kept users in this file (Name=EncryptedCode),
+        // so these names must never be read as users.
+        private static readonly string[] SettingKeys =
+        {
+            "Port", "UseHttps", "logs", "logsretention", "EnableGeolock", "GeoLatitude", "GeoLongitude", "MaxDistance", "Language"
+        };
+
+        public static bool IsSettingKey(string key)
+        {
+            return SettingKeys.Any(k => k.Equals(key.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
         public static ServerConfig LoadConfig()
         {
             var config = new ServerConfig();

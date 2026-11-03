@@ -147,6 +147,8 @@ namespace OpenSolLinuxServer
             SecureFile.Restrict("access_control.json");
             SecureFile.Restrict("server.config");
 
+            WarnAboutUsersNamedAfterSettings();
+
             _deviceController = new DeviceController(Console.WriteLine);
             
             // 2. Load Devices from JSON
@@ -191,6 +193,16 @@ namespace OpenSolLinuxServer
             }
         }
         
+        private static void WarnAboutUsersNamedAfterSettings()
+        {
+            var names = AccessControlManager.GetUsersNamedAfterSettings();
+            if (names.Count == 0) return;
+
+            Console.WriteLine($"WARNING: access_control.json contains users named after server settings ({string.Join(", ", names)}).");
+            Console.WriteLine("They were created by mistake by an older version: their code was the setting's value. They are now ignored.");
+            foreach (var name in names) Console.WriteLine($"  Remove with: --remove-user {name}");
+        }
+
         private static bool bfs_IsCommand(string arg)
         {
             return arg.StartsWith("--");
