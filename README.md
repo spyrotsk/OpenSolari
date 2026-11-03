@@ -20,10 +20,12 @@
 - **Cross-Platform**: Full support for Windows, Linux, and Android.
 - **Advanced Security**: 
   - Authentication via API Token (X-Auth-Token header).
-  - User codes stored only as salted hashes (PBKDF2), never in a decryptable form.
+  - User codes stored only as salted hashes (PBKDF2), never in a decryptable form. Codes must be at least 16 characters; the GUI and CLI can generate random ones.
+  - Brute-force protection: an IP address that sends 5 wrong tokens within a minute is blocked for 15 minutes.
+  - On Linux, configuration and log files are readable only by the user running the server.
   - Clients keep their token in the operating system's protected storage (DPAPI on Windows, Android Keystore) or, on Linux, in a config file readable only by the current user.
   - HTTPS support (Beta) for secure communications.
-  - **Geofencing (Geolock)**: Restrict Android client commands to a specific geographical radius around the server's target location.
+  - **Geofencing (Geolock)**: Restrict commands to a specific geographical radius around the server's target location. The position is sent by the client, so geolock is a deterrent, not a strong control.
 - **Flexible Management**: Dynamic configuration via JSON files and intuitive graphical interfaces.
 - **Professional Logging**: Integrated logging system with automatic rotation and configurable retention.
 
@@ -58,7 +60,8 @@ The project is divided into modular components:
 - **Runtime**: [.NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 - **CLI Parameters**: 
   - `--port <number>`: The port the server will listen on (default: `9999`).
-  - `--add-user <name> --auth <code> [--schedule <schedule_str>] [--ignore-geolock] [--devices <device_ids>]`: Adds or updates a user. 
+  - `--add-user <name> --auth <code|auto> [--schedule <schedule_str>] [--ignore-geolock] [--devices <device_ids>]`: Adds or updates a user. 
+    - The code must be at least 16 characters. `--auth auto` generates a random code and prints it once: give it to the user, it cannot be shown again.
     - Schedule Format: `"Mon:08:00-18:00,Tue:08:00-12:00"`.
     - If no schedule is provided, the user gets Full Access (24/7).
     - Use `--ignore-geolock` to exempt the user from geofence checks.
@@ -110,7 +113,7 @@ MaxDistance=300
 - **UseHttps**: Set to `true` to enable HTTPS (requires OS certificate binding on Windows). (Boolean)
 - **logs**: Set to `yes` to enable file logging in the `logs` directory. (Boolean)
 - **logsretention**: Number of days to keep log files. (Integer)
-- **EnableGeolock**: Set to `true` to enable geofencing for Android clients. (Boolean)
+- **EnableGeolock**: Set to `true` to enable geofencing. While it is on, every request must carry the client's GPS position: Windows and Linux clients send none, so their users need **Ignore Geolock** (`--ignore-geolock`). (Boolean)
 - **GeoLatitude**: Target latitude for the geofence. (Double)
 - **GeoLongitude**: Target longitude for the geofence. (Double)
   > [!TIP]
@@ -190,7 +193,10 @@ The server requires a `devices_config.json` file in the same directory as the ex
 - **duration**: Duration in seconds for which the output remains active (e.g., `3` for doors, `0` for gates/barriers) (Integer).
 - **secondi**: ⚠️ **[DEPRECATED]** Legacy parameter name for duration. Use `duration` instead. This parameter will be removed by the end of 2026 (Integer).
 - **username**: Device access username (default: `webterm`) (String).
-- **password**: Device access password (default: `webterm`) (String).
+- **password**: Device access password (default: `webterm`) (String). Change the default password on the terminals: the server prints a warning for every device that still uses it.
+
+> [!IMPORTANT]
+> The terminals' web interface uses plain HTTP and this file holds their passwords. Keep the terminals reachable only from the local network (ideally a separate VLAN), never forward ports to them, and run the server under a dedicated user.
 
 ### Windows/Linux Client Configuration (`buttons_config.json`)
 Desktop clients use `buttons_config.json` to define the layout of the UI buttons. The `id` must match the `id` configured on the Server.
@@ -247,9 +253,19 @@ On Windows, `HttpListener` requires a certificate to be bound to the port via th
    *Replace `<THUMBPRINT>` with your cert hash and `9999` with your configured port. Generate a random `<GUID>` or use one like `{00000000-0000-0000-0000-000000000000}`.*
    
 #### Linux Server
-For production on Linux, it is **highly recommended** to run the OpenSol server behind a Reverse Proxy like **Nginx** or **Apache** that handles SSL/Termination.
-1. Run OpenSolServer on standard HTTP (e.g., localhost:9999).
-2. Configure Nginx to listen on 443 (HTTPS) with your certs and `proxy_pass` to `http://localhost:9999`.
+For production on Linux, and always when the server is reachable from the Internet, run it behind a reverse proxy that handles HTTPS. [Caddy](https://caddyserver.com) obtains and renews a Let's Encrypt certificate by itself:
+1. Point a domain name (yours or a dynamic DNS) to your public IP.
+2. Keep OpenSolServer on HTTP (`UseHttps=false`, e.g. port 9999).
+3. In `/etc/caddy/Caddyfile`:
+   ```
+   gate.example.com {
+       reverse_proxy 127.0.0.1:9999
+   }
+   ```
+4. Forward only port 443 on the router to the server, and block port 9999 from other machines (e.g. `ufw allow 443/tcp` and `ufw deny 9999/tcp`).
+5. In the clients, use the domain name, port 443 and "Use HTTPS".
+
+Behind a proxy on the same machine, the server reads the client's address from the `X-Forwarded-For` header (only for requests coming from localhost), so logs and the brute-force protection see the real IP. Nginx works the same way with `proxy_pass http://127.0.0.1:9999;` and `proxy_set_header X-Forwarded-For $remote_addr;`.
 
 If you must run the .NET app directly with HTTPS:
 - You may need to configure Kestrel or `HttpListener` with appropriate permissions/certificates, but the Reverse Proxy approach is standard for Linux deployments.
