@@ -137,41 +137,38 @@ namespace OpenSol.Core
                         return;
                 }
 
-                // Geolock Check (only for Android clients)
+                // Geolock Check: applies to every client, whatever X-Client-Type says (that header is set by the client).
+                // Clients without GPS (Windows/Linux) are rejected: their users need IgnoreGeolock.
                 if (GeoConfig != null && GeoConfig.EnableGeolock && !user.IgnoreGeolock)
                 {
-                    string? clientType = context.Request.Headers["X-Client-Type"];
-                    if (string.Equals(clientType, "Android", StringComparison.OrdinalIgnoreCase))
+                    string? geoLatStr = context.Request.Headers["X-Geo-Lat"];
+                    string? geoLonStr = context.Request.Headers["X-Geo-Lon"];
+
+                    if (string.IsNullOrEmpty(geoLatStr) || string.IsNullOrEmpty(geoLonStr))
                     {
-                        string? geoLatStr = context.Request.Headers["X-Geo-Lat"];
-                        string? geoLonStr = context.Request.Headers["X-Geo-Lon"];
+                        Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (Geolock: no GPS data; desktop users need Ignore Geolock)", IsError = true });
+                        context.Response.Abort();
+                        return;
+                    }
 
-                        if (string.IsNullOrEmpty(geoLatStr) || string.IsNullOrEmpty(geoLonStr))
+                    if (double.TryParse(geoLatStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double clientLat) &&
+                        double.TryParse(geoLonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double clientLon) &&
+                        double.IsFinite(clientLat) && double.IsFinite(clientLon))
+                    {
+                        double distance = GeoUtils.CalculateDistance(GeoConfig.GeoLatitude, GeoConfig.GeoLongitude, clientLat, clientLon);
+                        if (!(distance <= GeoConfig.MaxDistance))
                         {
-                            Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (No GPS data from Android)", IsError = true });
-                            context.Response.Abort();
-                            return;
-                        }
-
-                        if (double.TryParse(geoLatStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double clientLat) &&
-                            double.TryParse(geoLonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out double clientLon))
-                        {
-                            double distance = GeoUtils.CalculateDistance(GeoConfig.GeoLatitude, GeoConfig.GeoLongitude, clientLat, clientLon);
-                            if (distance > GeoConfig.MaxDistance)
-                            {
-                                Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = $"Command failed (Geolock: {distance:F0}m > {GeoConfig.MaxDistance}m)", IsError = true });
-                                context.Response.Abort();
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (Invalid GPS data)", IsError = true });
+                            Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = $"Command failed (Geolock: {distance:F0}m > {GeoConfig.MaxDistance}m)", IsError = true });
                             context.Response.Abort();
                             return;
                         }
                     }
-                    // Non-Android clients (Windows/Linux) skip geolock check
+                    else
+                    {
+                        Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (Invalid GPS data)", IsError = true });
+                        context.Response.Abort();
+                        return;
+                    }
                 }
 
                 // Device Restriction Check

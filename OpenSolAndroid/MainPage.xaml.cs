@@ -39,7 +39,14 @@ namespace SolAndroid
             
             if (targetBtn != null)
             {
-                await SendCommand(targetBtn.Id);
+                // The command came from outside the app (shortcut, Assistant, or another app sending an intent):
+                // ask before opening, so nothing can open a gate without the user's consent.
+                bool confirmed = await MainThread.InvokeOnMainThreadAsync(() =>
+                    DisplayAlert("OpenSolari", $"Open '{targetBtn.Description}'?", "Open", "Cancel"));
+                if (confirmed)
+                {
+                    await SendCommand(targetBtn.Id);
+                }
             }
             else
             {

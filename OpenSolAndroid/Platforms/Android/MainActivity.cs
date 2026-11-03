@@ -6,8 +6,10 @@ namespace SolAndroid
 {
     [Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, LaunchMode = LaunchMode.SingleTop, Exported = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize | ConfigChanges.Density)]
     [MetaData("android.app.shortcuts", Resource = "@xml/shortcuts")]
+    // No CategoryBrowsable: web pages must not be able to start a command through an opensolari:// link.
+    // Commands arriving through an intent are confirmed by the user in MainPage before they are sent.
     [IntentFilter(new[] { Android.Content.Intent.ActionView }, 
-                  Categories = new[] { Android.Content.Intent.CategoryDefault, Android.Content.Intent.CategoryBrowsable }, 
+                  Categories = new[] { Android.Content.Intent.CategoryDefault }, 
                   DataScheme = "opensolari", 
                   DataHost = "open")]
     public class MainActivity : MauiAppCompatActivity
