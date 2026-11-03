@@ -97,7 +97,7 @@ namespace OpenSol.Core
                 lines.Add($"GeoLongitude={config.GeoLongitude.ToString(CultureInfo.InvariantCulture)}");
                 lines.Add($"MaxDistance={config.MaxDistance}");
 
-                File.WriteAllLines(ConfigFileName, lines);
+                SecureFile.WriteAllText(ConfigFileName, string.Join(Environment.NewLine, lines) + Environment.NewLine);
             }
             catch (Exception ex)
             {

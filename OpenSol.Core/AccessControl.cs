@@ -83,7 +83,7 @@ namespace OpenSol.Core
 
                 if (migrated)
                 {
-                    File.WriteAllText(ConfigFileName, JsonSerializer.Serialize(_cachedConfig, OpenSolContext.Default.AccessControlConfig));
+                    SecureFile.WriteAllText(ConfigFileName, JsonSerializer.Serialize(_cachedConfig, OpenSolContext.Default.AccessControlConfig));
                 }
             }
             catch (Exception)
@@ -165,7 +165,7 @@ namespace OpenSol.Core
             try
             {
                 string json = JsonSerializer.Serialize(config, OpenSolContext.Default.AccessControlConfig);
-                File.WriteAllText(ConfigFileName, json);
+                SecureFile.WriteAllText(ConfigFileName, json);
                 
                 // Force reload to update cache
                 _lastLoadTime = DateTime.MinValue;
@@ -246,15 +246,17 @@ namespace OpenSol.Core
         public static bool IsAccessAllowed(string username, DateTime verifyTime)
         {
             var config = LoadConfig();
-
-            // Find rule for this user
             var rule = config.Users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            return IsAccessAllowed(rule, verifyTime);
+        }
 
-            if (rule == null)
-            {
-                // User not in access control list -> ALLOW (Backward compatibility)
-                return true;
-            }
+        /// <summary>
+        /// Checks the schedule of the user returned by Authenticate.
+        /// A missing user (e.g. removed in the meantime) is denied.
+        /// </summary>
+        public static bool IsAccessAllowed(UserAccessRule? rule, DateTime verifyTime)
+        {
+            if (rule == null) return false;
 
             // Admin Override
             if (rule.IgnoreSchedule) return true;

@@ -1,5 +1,6 @@
 
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -16,6 +17,9 @@ namespace OpenSol.Core
 
         // Dictionary of configured devices (ID -> DeviceConfig)
         private Dictionary<string, DeviceConfig> _devices = new Dictionary<string, DeviceConfig>();
+
+        // One command at a time per terminal: two parallel logins would overwrite each other's session cookie
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _deviceLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
 
         // Web pages that carry the CSRF tokens on newer firmwares (e.g. fs22 2.3.x)
         private const string SignInPage = "/html/signin.asp";
@@ -43,12 +47,41 @@ namespace OpenSol.Core
                 if (!string.IsNullOrEmpty(device.Id))
                 {
                     _devices[device.Id.ToLower()] = device;
+
+                    if (device.Username == "webterm" && device.Password == "webterm")
+                    {
+                        _logger($"WARNING: device '{device.Id}' uses the terminal's default password (webterm). Change it on the terminal and in devices_config.json.");
+                    }
                 }
             }
             _logger($"Configured {_devices.Count} devices.");
         }
 
-        public async Task<bool> OpenGate(string deviceId)
+        /// <summary>
+        /// Opens a device for an authenticated user. The user's AllowedDevices are checked here,
+        /// right before the command, so every caller goes through the same check.
+        /// </summary>
+        public async Task<bool> OpenGate(string deviceId, UserAccessRule user)
+        {
+            if (!user.IsDeviceAllowed(deviceId))
+            {
+                _logger($"User '{user.Username}' is not allowed to open '{AppLogger.Sanitize(deviceId)}'.");
+                return false;
+            }
+
+            var deviceLock = _deviceLocks.GetOrAdd(deviceId.ToLower(), _ => new SemaphoreSlim(1, 1));
+            await deviceLock.WaitAsync();
+            try
+            {
+                return await OpenGate(deviceId);
+            }
+            finally
+            {
+                deviceLock.Release();
+            }
+        }
+
+        private async Task<bool> OpenGate(string deviceId)
         {
             DeviceConfig? device = null;
             string normalizedId = deviceId.ToLower();
@@ -61,7 +94,7 @@ namespace OpenSol.Core
 
             if (device == null || string.IsNullOrEmpty(device.Ip))
             {
-                _logger($"Device '{deviceId}' not found or IP missing.");
+                _logger($"Device '{AppLogger.Sanitize(deviceId)}' not found or IP missing.");
                 return false;
             }
 
@@ -115,7 +148,7 @@ namespace OpenSol.Core
                 string? formAction = ParseFormAction(outputPage, OutputFormId);
                 if (!string.IsNullOrEmpty(formAction))
                 {
-                    outputUrl = formAction.StartsWith("http") ? formAction : baseUrl + "/" + formAction.TrimStart('/');
+                    outputUrl = ResolveFormAction(baseUrl, formAction) ?? outputUrl;
                 }
                 // Head selector of SetOutputForm: empty value = MAIN (the terminal itself)
                 outputFields.Add(new("testa", ""));
@@ -135,6 +168,23 @@ namespace OpenSol.Core
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Resolves the form action read from the terminal's page. Only addresses on the terminal itself are accepted:
+        /// a page that points elsewhere (e.g. someone impersonating the terminal on the LAN) is ignored.
+        /// </summary>
+        private string? ResolveFormAction(string baseUrl, string formAction)
+        {
+            var baseUri = new Uri(baseUrl + "/");
+            if (!Uri.TryCreate(baseUri, formAction, out Uri? target) ||
+                (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps) ||
+                !string.Equals(target.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger($"Ignored form action pointing outside the terminal: {AppLogger.Sanitize(formAction)}");
+                return null;
+            }
+            return target.ToString();
         }
 
         /// <summary>

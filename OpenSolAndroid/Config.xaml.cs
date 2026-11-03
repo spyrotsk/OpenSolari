@@ -219,8 +219,23 @@ public partial class Config : ContentPage
                 return;
             }
 
-            bool confirm = await DisplayAlert("Confirm", "Importing this configuration will overwrite current data. Continue?", "Yes", "No");
+            // A file pointing to another server must not receive the token saved for the current one
+            bool serverChanged = !string.Equals(config.ServerIP?.Trim(), Preferences.Get("ServerIP", "").Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                 !string.Equals(config.ServerPort?.Trim(), Preferences.Get("ServerPort", "").Trim(), StringComparison.Ordinal);
+            bool clearToken = serverChanged && string.IsNullOrEmpty(config.AuthToken);
+
+            string message = "Importing this configuration will overwrite current data. Continue?";
+            if (clearToken)
+                message = $"This configuration points to a different server ({config.ServerIP}:{config.ServerPort}). The saved token will be removed and you will need to enter it again. Continue?";
+
+            bool confirm = await DisplayAlert("Confirm", message, "Yes", "No");
             if (!confirm) return;
+
+            if (clearToken)
+            {
+                await TokenStore.SetAsync(null);
+                txtToken.Text = "";
+            }
 
             // Save parameters in Preferences
             Preferences.Set("ServerIP", config.ServerIP);

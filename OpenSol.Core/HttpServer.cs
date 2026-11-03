@@ -20,14 +20,15 @@ namespace OpenSol.Core
     public class HttpServer
     {
         private HttpListener? _listener;
-        private readonly Func<HttpListenerContext, Task<string?>> _requestHandler;
+        // The handler receives the authenticated user, so it can check what the user may do right before acting
+        private readonly Func<HttpListenerContext, UserAccessRule, Task<string?>> _requestHandler;
         public bool IsRunning { get; private set; }
         public ServerConfig? GeoConfig { get; set; }
 
         // Wrong tokens per IP: 5 in a minute block the address for 15 minutes
         private readonly FailedAuthLimiter _authLimiter = new FailedAuthLimiter();
 
-        public HttpServer(Func<HttpListenerContext, Task<string?>> requestHandler)
+        public HttpServer(Func<HttpListenerContext, UserAccessRule, Task<string?>> requestHandler)
         {
             _requestHandler = requestHandler;
         }
@@ -96,7 +97,7 @@ namespace OpenSol.Core
                 }
 
                 string clientIp = GetClientIp(context.Request);
-                string requestUrl = context.Request.Url?.ToString() ?? "Unknown URL";
+                string requestUrl = AppLogger.Sanitize(context.Request.Url?.ToString() ?? "Unknown URL");
 
                 if (_authLimiter.IsBlocked(clientIp))
                 {
@@ -130,7 +131,7 @@ namespace OpenSol.Core
                 string userName = user.Username;
 
                 // Access Control Check
-                if (!AccessControlManager.IsAccessAllowed(userName, DateTime.Now))
+                if (!AccessControlManager.IsAccessAllowed(user, DateTime.Now))
                 {
                         Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (Schedule Restriction)", IsError = true });
                         context.Response.Abort();
@@ -171,13 +172,14 @@ namespace OpenSol.Core
                     }
                 }
 
-                // Device Restriction Check
+                // Early Device Restriction Check, for the log. DeviceController.OpenGate checks it again right before opening,
+                // so a new endpoint cannot skip it.
                 if (context.Request.Url?.AbsolutePath == "/open")
                 {
                     string gate = context.Request.QueryString["gate"] ?? "";
                     if (!user.IsDeviceAllowed(gate))
                     {
-                        Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = $"Command failed (Device not allowed: {gate})", IsError = true });
+                        Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = $"Command failed (Device not allowed: {AppLogger.Sanitize(gate)})", IsError = true });
                         context.Response.Abort();
                         return;
                     }
@@ -185,7 +187,7 @@ namespace OpenSol.Core
 
                 Logger?.Invoke(new LogData { Timestamp = DateTime.Now, User = userName, Ip = clientIp, RequestUrl = requestUrl, Message = "OK", IsError = false });
 
-                responseString = await _requestHandler(context);
+                responseString = await _requestHandler(context, user);
                 
                 if (responseString == null)
                 {

@@ -159,7 +159,7 @@ namespace OpenSolWinServer
             // Reload devices
             LoadDevicesConfig();
 
-            _server = new HttpServer(ctx => HandleRequest(ctx));
+            _server = new HttpServer(HandleRequest);
             _server.Logger = LogHttp; // Use structured logger
             _server.GeoConfig = _config;
 
@@ -195,7 +195,7 @@ namespace OpenSolWinServer
             grpConfig.Enabled = true;
         }
 
-        private async Task<string?> HandleRequest(System.Net.HttpListenerContext context)
+        private async Task<string?> HandleRequest(System.Net.HttpListenerContext context, UserAccessRule user)
         {
             var request = context.Request;
 
@@ -204,10 +204,10 @@ namespace OpenSolWinServer
                 string gateType = request.QueryString["gate"] ?? "";
                 if (string.IsNullOrEmpty(gateType)) return null;
 
-                Log($"Open command: {gateType}");
+                Log($"Open command: {AppLogger.Sanitize(gateType)}");
 
                 // Delegated to shared controller
-                bool success = await _deviceController.OpenGate(gateType);
+                bool success = await _deviceController.OpenGate(gateType, user);
                 return success ? "OK" : "ERROR";
             }
 

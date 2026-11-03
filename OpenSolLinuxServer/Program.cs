@@ -142,6 +142,11 @@ namespace OpenSolLinuxServer
             // Save config mainly for port changes if not already saved
             ConfigManager.SaveConfig(config);
 
+            // Files written by hand or by older versions: readable only by the server's user
+            SecureFile.Restrict("devices_config.json");
+            SecureFile.Restrict("access_control.json");
+            SecureFile.Restrict("server.config");
+
             _deviceController = new DeviceController(Console.WriteLine);
             
             // 2. Load Devices from JSON
@@ -166,7 +171,7 @@ namespace OpenSolLinuxServer
 
             // 3. Start Server
             // HttpServer internally uses AccessControlManager for Auth, so we don't need to pass a list of users manually.
-            _server = new HttpServer(ctx => HandleRequest(ctx));
+            _server = new HttpServer(HandleRequest);
             _server.Logger = LogToConsole;
             _server.GeoConfig = config;
             
@@ -256,7 +261,7 @@ namespace OpenSolLinuxServer
             AppLogger.Log(fileMsg);
         }
 
-        private static async Task<string?> HandleRequest(HttpListenerContext context)
+        private static async Task<string?> HandleRequest(HttpListenerContext context, UserAccessRule user)
         {
             var request = context.Request;
             // Logging handles by HttpServer
@@ -266,7 +271,7 @@ namespace OpenSolLinuxServer
                 string gateType = request.QueryString["gate"] ?? "";
                 if (string.IsNullOrEmpty(gateType)) return null;
 
-                bool success = await _deviceController!.OpenGate(gateType);
+                bool success = await _deviceController!.OpenGate(gateType, user);
                 return success ? "OK" : "ERROR";
             }
 

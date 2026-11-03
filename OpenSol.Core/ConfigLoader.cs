@@ -44,7 +44,7 @@ namespace OpenSol.Core
             try
             {
                 string json = JsonSerializer.Serialize(config, OpenSolContext.Default.DevicesConfig);
-                File.WriteAllText(filePath, json);
+                SecureFile.WriteAllText(filePath, json); // Holds the terminals' passwords
             }
             catch (Exception ex)
             {
@@ -81,7 +81,7 @@ namespace OpenSol.Core
             try
             {
                 string json = JsonSerializer.Serialize(config, OpenSolContext.Default.ButtonsConfig);
-                File.WriteAllText(filePath, json);
+                SecureFile.WriteAllText(filePath, json);
             }
             catch (Exception ex)
             {

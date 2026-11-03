@@ -82,7 +82,8 @@ namespace OpenSol.Core
         }
 
         private const string HashPrefix = "pbkdf2$";
-        private const int HashIterations = 20000;
+        // Codes hashed with fewer iterations by older versions stay valid: the count is stored with each hash
+        private const int HashIterations = 100000;
 
         /// <summary>
         /// Hashes a secret with a random salt (PBKDF2-SHA256). Format: pbkdf2$iterations$salt$hash

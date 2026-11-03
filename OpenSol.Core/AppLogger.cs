@@ -21,10 +21,8 @@ namespace OpenSol.Core
             {
                 try
                 {
-                    if (!Directory.Exists(_logsDirectory))
-                    {
-                        Directory.CreateDirectory(_logsDirectory);
-                    }
+                    // Logs hold user names and IPs: readable only by the server's user on Linux
+                    SecureFile.CreateDirectory(_logsDirectory);
                     CleanOldLogs();
                 }
                 catch (Exception ex)
@@ -44,15 +42,29 @@ namespace OpenSol.Core
                 {
                     string fileName = $"log_{DateTime.Now:yyyy-MM-dd}.txt";
                     string filePath = Path.Combine(_logsDirectory, fileName);
-                    string logLine = $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}";
+                    string logLine = $"[{DateTime.Now:HH:mm:ss}] {Sanitize(message)}{Environment.NewLine}";
 
-                    File.AppendAllText(filePath, logLine, Encoding.UTF8);
+                    SecureFile.AppendAllText(filePath, logLine);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Error writing log: {ex.Message}");
                 }
             }
+        }
+
+        /// <summary>
+        /// Replaces control characters (e.g. line breaks sent as %0A in a URL) so that
+        /// text coming from a request cannot add fake lines to the logs.
+        /// </summary>
+        public static string Sanitize(string? text)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            if (!text.Any(char.IsControl)) return text;
+
+            var builder = new StringBuilder(text.Length);
+            foreach (char c in text) builder.Append(char.IsControl(c) ? '?' : c);
+            return builder.ToString();
         }
 
         public static void CleanOldLogs()
