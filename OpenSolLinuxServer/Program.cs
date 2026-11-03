@@ -30,7 +30,7 @@ namespace OpenSolLinuxServer
                 }
                 else if (args[i] == "--add-user" && i + 1 < args.Length)
                 {
-                    // Required Format: --add-user Name --auth Code [--schedule "Mon:08-18,..."] [--devices "1,2"]
+                    // Required Format: --add-user Name --auth Code|auto [--schedule "Mon:08-18,..."] [--devices "1,2"]
                     string name = args[++i];
                     string code = "";
                     string scheduleStr = "";
@@ -70,6 +70,16 @@ namespace OpenSolLinuxServer
                         }
                     }
 
+                    // "auto" creates a random code, printed once below
+                    bool generatedCode = code.Equals("auto", StringComparison.OrdinalIgnoreCase);
+                    if (generatedCode) code = SecurityUtils.GenerateCode();
+
+                    if (!string.IsNullOrEmpty(code) && code.Length < SecurityUtils.MinCodeLength)
+                    {
+                        Console.WriteLine($"Error: the code must be at least {SecurityUtils.MinCodeLength} characters long. Use --auth auto to create a random one.");
+                        return;
+                    }
+
                     if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(code))
                     {
                         var schedule = ParseSchedule(scheduleStr);
@@ -93,12 +103,17 @@ namespace OpenSolLinuxServer
                         
                         if (ignoreGeolock) Console.WriteLine("- Geolock: BYPASSED");
                         Console.WriteLine($"- Devices: {FormatDevices(allowedDevices)}");
+                        if (generatedCode)
+                        {
+                            Console.WriteLine($"- Code: {code}");
+                            Console.WriteLine("  Give it to the user now: it is stored as a hash and cannot be shown again.");
+                        }
                         
                         return; // Exit after command
                     }
                     else
                     {
-                        Console.WriteLine("Error: Incomplete format. Use: --add-user Name --auth Code [--schedule \"...\"]");
+                        Console.WriteLine("Error: Incomplete format. Use: --add-user Name --auth Code|auto [--schedule \"...\"]");
                         return;
                     }
                 }

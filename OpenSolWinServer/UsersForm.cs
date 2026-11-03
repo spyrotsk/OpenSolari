@@ -12,6 +12,7 @@ namespace OpenSolWinServer
         private ListBox lstUsers;
         private TextBox txtName;
         private TextBox txtCode;
+        private Button btnGenerateCode;
         private Button btnAdd;
         private Button btnRemove;
         private Button btnClose;
@@ -46,7 +47,9 @@ namespace OpenSolWinServer
             txtName = new TextBox() { Location = new Point(20, 40), Width = 150 };
 
             lblCode = new Label() { Text = "Secret Code (empty = keep):", Location = new Point(180, 20), AutoSize = true };
-            txtCode = new TextBox() { Location = new Point(180, 40), Width = 150 };
+            txtCode = new TextBox() { Location = new Point(180, 40), Width = 100 };
+            btnGenerateCode = new Button() { Text = "Generate", Location = new Point(283, 38), Size = new Size(62, 24) };
+            btnGenerateCode.Click += BtnGenerateCode_Click;
 
             chkIgnoreGeolock = new CheckBox() { Text = "Ignore Geolock (Admin/Special)", Location = new Point(350, 40), AutoSize = true };
 
@@ -136,6 +139,7 @@ namespace OpenSolWinServer
             this.Controls.Add(txtName);
             this.Controls.Add(lblCode);
             this.Controls.Add(txtCode);
+            this.Controls.Add(btnGenerateCode);
             this.Controls.Add(grpSchedule);
             this.Controls.Add(chkIgnoreGeolock);
             this.Controls.Add(lblDevices);
@@ -199,6 +203,12 @@ namespace OpenSolWinServer
                 return;
             }
 
+            if (!string.IsNullOrEmpty(code) && code.Length < SecurityUtils.MinCodeLength)
+            {
+                MessageBox.Show($"The code must be at least {SecurityUtils.MinCodeLength} characters long. Use \"Generate\" to create a random one.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             // Logic change: If we are editing (name matches existing), we update.
             // If name is new, it's a new user. 
             // The prompt says "Modify a user... press Save". 
@@ -245,6 +255,13 @@ namespace OpenSolWinServer
              foreach(var chk in chkDays) chk.Checked = false;
 
             RefreshList();
+        }
+
+        private void BtnGenerateCode_Click(object? sender, EventArgs e)
+        {
+            txtCode.Text = SecurityUtils.GenerateCode();
+            try { Clipboard.SetText(txtCode.Text); } catch { }
+            MessageBox.Show("A random code has been created and copied to the clipboard.\nGive it to the user now: once saved, it is stored as a hash and cannot be shown again.", "Code", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void BtnEdit_Click(object sender, EventArgs e)

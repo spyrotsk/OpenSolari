@@ -179,6 +179,9 @@ namespace OpenSol.Core
         {
             var config = LoadConfig();
             var existing = config.Users.FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(code) && code.Length < SecurityUtils.MinCodeLength)
+                throw new ArgumentException($"The code must be at least {SecurityUtils.MinCodeLength} characters long.", nameof(code));
+
             string? tokenHash = string.IsNullOrEmpty(code) ? null : SecurityUtils.HashSecret(code);
             
             if (existing != null)

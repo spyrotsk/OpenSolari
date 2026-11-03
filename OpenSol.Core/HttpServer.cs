@@ -24,6 +24,9 @@ namespace OpenSol.Core
         public bool IsRunning { get; private set; }
         public ServerConfig? GeoConfig { get; set; }
 
+        // Wrong tokens per IP: 5 in a minute block the address for 15 minutes
+        private readonly FailedAuthLimiter _authLimiter = new FailedAuthLimiter();
+
         public HttpServer(Func<HttpListenerContext, Task<string?>> requestHandler)
         {
             _requestHandler = requestHandler;
@@ -64,7 +67,8 @@ namespace OpenSol.Core
                 try
                 {
                     var context = await _listener.GetContextAsync();
-                    ProcessRequest(context);
+                    // Each request runs on its own task: a slow one (e.g. a wrong token, checked with PBKDF2) does not hold up the others
+                    _ = Task.Run(() => ProcessRequest(context));
                 }
                 catch (HttpListenerException)
                 {
@@ -79,7 +83,7 @@ namespace OpenSol.Core
 
         public Action<LogData>? Logger { get; set; }
 
-        private async void ProcessRequest(HttpListenerContext context)
+        private async Task ProcessRequest(HttpListenerContext context)
         {
             string? responseString = null;
 
@@ -91,8 +95,14 @@ namespace OpenSol.Core
                     return;
                 }
 
-                string clientIp = context.Request.RemoteEndPoint.Address.ToString();
+                string clientIp = GetClientIp(context.Request);
                 string requestUrl = context.Request.Url?.ToString() ?? "Unknown URL";
+
+                if (_authLimiter.IsBlocked(clientIp))
+                {
+                        context.Response.Abort();
+                        return;
+                }
 
                 // Verification Authentication
                 string? clientToken = context.Request.Headers["X-Auth-Token"];
@@ -109,6 +119,10 @@ namespace OpenSol.Core
                 if (user == null)
                 {
                         Logger?.Invoke(new LogData { Timestamp = DateTime.Now, Ip = clientIp, RequestUrl = requestUrl, Message = "Command failed (Invalid Token)", IsError = true });
+                        if (_authLimiter.RegisterFailure(clientIp))
+                        {
+                            Logger?.Invoke(new LogData { Timestamp = DateTime.Now, Ip = clientIp, RequestUrl = requestUrl, Message = $"IP blocked for {_authLimiter.BlockDuration.TotalMinutes:F0} minutes after {_authLimiter.MaxFailures} invalid tokens", IsError = true });
+                        }
                         context.Response.Abort();
                         return;
                 }
@@ -203,6 +217,27 @@ namespace OpenSol.Core
             {
                 try { context.Response.Close(); } catch { }
             }
+        }
+
+        /// <summary>
+        /// Address of the client. Behind a reverse proxy on the same machine (e.g. Caddy) every request
+        /// comes from localhost, so the address the proxy saw is read from X-Forwarded-For.
+        /// The header is trusted only from localhost: anyone else could write any address in it.
+        /// </summary>
+        private static string GetClientIp(HttpListenerRequest request)
+        {
+            IPAddress remote = request.RemoteEndPoint.Address;
+            if (IPAddress.IsLoopback(remote))
+            {
+                string? forwarded = request.Headers["X-Forwarded-For"];
+                if (!string.IsNullOrWhiteSpace(forwarded))
+                {
+                    // The proxy appends the address it saw as the last entry
+                    string last = forwarded.Split(',')[^1].Trim();
+                    if (IPAddress.TryParse(last, out IPAddress? forwardedIp)) return forwardedIp.ToString();
+                }
+            }
+            return remote.ToString();
         }
     }
 }

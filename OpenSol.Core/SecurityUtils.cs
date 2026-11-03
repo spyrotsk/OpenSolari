@@ -67,6 +67,20 @@ namespace OpenSol.Core
             }
         }
 
+        /// <summary>Minimum length of a user code: shorter codes can be guessed.</summary>
+        public const int MinCodeLength = 16;
+
+        // No look-alike characters (0/O, 1/l/I) so a code can be read out or typed by hand
+        private const string CodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+        /// <summary>
+        /// Creates a random user code from a cryptographic random source.
+        /// </summary>
+        public static string GenerateCode(int length = 24)
+        {
+            return RandomNumberGenerator.GetString(CodeAlphabet, Math.Max(length, MinCodeLength));
+        }
+
         private const string HashPrefix = "pbkdf2$";
         private const int HashIterations = 20000;
 
